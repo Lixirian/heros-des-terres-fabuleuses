@@ -11,7 +11,7 @@ RUN npm install
 COPY packages/client/ packages/client/
 COPY packages/server/ packages/server/
 
-RUN npm run build
+RUN cd packages/client && npx tsc && npx vite build && cd ../server && npx tsc -p tsconfig.json
 
 # Stage 2: Production
 FROM node:20-alpine
