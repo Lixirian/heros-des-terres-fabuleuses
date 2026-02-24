@@ -7,8 +7,8 @@ const mapImages: Record<number, string> = {
   2: '/assets/maps/color-fr-book2-golnir.jpg',
   3: '/assets/maps/color-fr-book3-ocean-violet.jpg',
   4: '/assets/maps/color-fr-book4-steppes.jpg',
-  5: '/assets/maps/fr-book5-uttaku.jpg',
-  6: '/assets/maps/fr-book6-akatsurai.jpg',
+  5: '/assets/maps/web-book5-uttaku.jpg',
+  6: '/assets/maps/web-book6-akatsurai.jpg',
 };
 
 export default function MapView() {
