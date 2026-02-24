@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:alkonost-editions.com)",
+      "WebFetch(domain:alkonost-editions.fr)",
+      "WebSearch",
+      "WebFetch(domain:www.fabledlands.fr)",
+      "WebFetch(domain:en.wikipedia.org)",
+      "WebFetch(domain:www.lloydofgamebooks.com)",
+      "WebFetch(domain:sparkfurnace.com)",
+      "WebFetch(domain:steamcommunity.com)",
+      "Bash(cd:*)"
+    ]
+  }
+}

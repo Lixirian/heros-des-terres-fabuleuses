@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: linear-gradient(135deg, #1a0f0a 0%, #2d1f14 50%, #1a0f0a 100%);
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background-color: rgba(218, 165, 32, 0.3);
+    color: #f5e6c8;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #2d2009;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #946b24;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #b8862d;
+  }
+}
+
+@layer components {
+  .parchment-card {
+    @apply bg-gradient-to-br from-parchment-100 to-parchment-200 text-parchment-900
+           rounded-lg shadow-lg border border-parchment-400/50 p-6;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(139, 0, 0, 0.03) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 50%, rgba(218, 165, 32, 0.05) 0%, transparent 50%);
+  }
+
+  .fantasy-button {
+    @apply px-6 py-2 bg-gradient-to-b from-fantasy-gold to-parchment-500
+           text-parchment-900 font-medieval rounded border-2 border-parchment-700
+           hover:from-parchment-300 hover:to-fantasy-gold
+           active:scale-95 transition-all duration-200 shadow-md
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .fantasy-button-danger {
+    @apply px-6 py-2 bg-gradient-to-b from-red-700 to-red-900
+           text-parchment-100 font-medieval rounded border-2 border-red-950
+           hover:from-red-600 hover:to-red-800
+           active:scale-95 transition-all duration-200 shadow-md;
+  }
+
+  .fantasy-input {
+    @apply w-full px-4 py-2 bg-parchment-50 border-2 border-parchment-400
+           rounded text-parchment-900 font-body placeholder-parchment-500
+           focus:outline-none focus:border-fantasy-gold focus:ring-1 focus:ring-fantasy-gold
+           transition-colors duration-200;
+  }
+
+  .section-title {
+    @apply font-medieval text-2xl text-fantasy-gold mb-4
+           border-b-2 border-parchment-700 pb-2;
+  }
+
+  .stat-badge {
+    @apply inline-flex items-center justify-center w-10 h-10
+           bg-gradient-to-br from-parchment-700 to-parchment-900
+           text-fantasy-gold font-bold rounded-full border-2 border-fantasy-gold
+           text-sm shadow-inner;
+  }
+
+  /* Dice 3D */
+  .dice-container {
+    perspective: 600px;
+    width: 80px;
+    height: 80px;
+  }
+
+  .dice-cube {
+    width: 80px;
+    height: 80px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s ease-out;
+  }
+
+  .dice-face {
+    @apply absolute w-full h-full flex items-center justify-center
+           bg-gradient-to-br from-parchment-100 to-parchment-300
+           border-2 border-parchment-600 rounded-lg
+           text-3xl font-bold text-parchment-900;
+  }
+
+  .dice-face:nth-child(1) { transform: rotateY(0deg) translateZ(40px); }
+  .dice-face:nth-child(2) { transform: rotateY(90deg) translateZ(40px); }
+  .dice-face:nth-child(3) { transform: rotateY(180deg) translateZ(40px); }
+  .dice-face:nth-child(4) { transform: rotateY(270deg) translateZ(40px); }
+  .dice-face:nth-child(5) { transform: rotateX(90deg) translateZ(40px); }
+  .dice-face:nth-child(6) { transform: rotateX(-90deg) translateZ(40px); }
+
+  @keyframes diceRolling {
+    0% { transform: rotateX(0) rotateY(0) rotateZ(0); }
+    25% { transform: rotateX(270deg) rotateY(180deg) rotateZ(90deg); }
+    50% { transform: rotateX(540deg) rotateY(360deg) rotateZ(180deg); }
+    75% { transform: rotateX(630deg) rotateY(540deg) rotateZ(270deg); }
+    100% { transform: rotateX(720deg) rotateY(720deg) rotateZ(360deg); }
+  }
+
+  .dice-rolling {
+    animation: diceRolling 0.8s ease-out;
+  }
+}

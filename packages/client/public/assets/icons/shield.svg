@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <path d="M32 4L8 16v16c0 14 10 24 24 28 14-4 24-14 24-28V16L32 4z" fill="#DAA520" stroke="#5C3A1E" stroke-width="2"/>
+  <path d="M32 12L16 20v12c0 10 7 17 16 20 9-3 16-10 16-20V20L32 12z" fill="#8B0000"/>
+  <text x="32" y="42" text-anchor="middle" font-size="24" font-weight="bold" fill="#DAA520" font-family="serif">H</text>
+</svg>
