@@ -168,7 +168,7 @@ export default function HomePage() {
                   </h4>
                 </div>
                 <p className="text-parchment-300 text-xs italic">{book.title}</p>
-                <p className="text-parchment-200 text-sm mt-2">{book.region} - {book.maxCode} codes</p>
+                <p className="text-parchment-200 text-sm mt-2">{book.region} - {book.maxCode} chapitres</p>
               </div>
             </Link>
           ))}

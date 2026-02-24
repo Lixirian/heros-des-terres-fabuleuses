@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../utils/api';
 import { Character, EquipmentItem } from '../data/types';
 import { books } from '../data/books';
-import { gods } from '../data/equipment';
+import { gods, allEquipment } from '../data/equipment';
 import { statsTable, RankRange } from '../data/professions';
 
 const statLabels: Record<string, string> = {
@@ -30,6 +30,13 @@ export default function CharacterSheet() {
   const [showPortraitPicker, setShowPortraitPicker] = useState(false);
   const [uploadingPortrait, setUploadingPortrait] = useState(false);
   const portraitInputRef = useRef<HTMLInputElement>(null);
+  const [equipSearch, setEquipSearch] = useState('');
+  const [equipDropdownOpen, setEquipDropdownOpen] = useState(false);
+  const [showCustomItemForm, setShowCustomItemForm] = useState(false);
+  const [customItem, setCustomItem] = useState<{ name: string; type: 'arme' | 'armure' | 'objet'; bonusStat: string; bonusValue: string }>({ name: '', type: 'objet', bonusStat: '', bonusValue: '' });
+  const equipSearchRef = useRef<HTMLDivElement>(null);
+  const [showCatalog, setShowCatalog] = useState(false);
+  const [catalogFilter, setCatalogFilter] = useState<'tous' | 'arme' | 'armure' | 'objet'>('tous');
 
   const handlePortraitUpload = async (file: File) => {
     if (!id) return;
@@ -45,6 +52,17 @@ export default function CharacterSheet() {
     }
   };
 
+  // Fermer le dropdown équipement au clic extérieur
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (equipSearchRef.current && !equipSearchRef.current.contains(e.target as Node)) {
+        setEquipDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   useEffect(() => {
     if (id) {
       api.getCharacter(Number(id))
@@ -56,6 +74,7 @@ export default function CharacterSheet() {
             titles: typeof c.titles === 'string' ? JSON.parse(c.titles) : c.titles || [],
             equipment: typeof c.equipment === 'string' ? JSON.parse(c.equipment) : c.equipment || [],
             codewords: typeof c.codewords === 'string' ? JSON.parse(c.codewords) : c.codewords || [],
+            temp_bonuses: typeof c.temp_bonuses === 'string' ? JSON.parse(c.temp_bonuses) : c.temp_bonuses || {},
             is_initiate: !!c.is_initiate,
             is_dead: !!c.is_dead,
           };
@@ -109,6 +128,17 @@ export default function CharacterSheet() {
     await api.deleteCharacter(Number(id));
     navigate('/');
   };
+
+  // Calculer les bonus d'équipement par stat (utilise editData en mode édition)
+  const equipBonuses: Record<string, number> = {};
+  if (char) {
+    const equipSource = editing ? (editData.equipment || []) : (char.equipment || []);
+    for (const item of equipSource as EquipmentItem[]) {
+      if (item.bonus) {
+        equipBonuses[item.bonus.stat] = (equipBonuses[item.bonus.stat] || 0) + item.bonus.value;
+      }
+    }
+  }
 
   if (!char) return <div className="text-parchment-400 text-center py-8">Chargement...</div>;
 
@@ -247,25 +277,59 @@ export default function CharacterSheet() {
       <div className="parchment-card">
         <h3 className="section-title">Compétences</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {Object.entries(statLabels).map(([key, label]) => (
-            <div key={key} className="flex items-center gap-3">
-              <div className="stat-badge">
-                {editing ? (
-                  <input
-                    type="number"
-                    value={editData[key] ?? 0}
-                    onChange={e => setEditData({ ...editData, [key]: Number(e.target.value) })}
-                    className="w-8 text-center bg-transparent text-fantasy-gold"
-                    min={1}
-                    max={12}
-                  />
-                ) : (
-                  char[key]
-                )}
+          {Object.entries(statLabels).map(([key, label]) => {
+            const equipBonus = equipBonuses[key] || 0;
+            const tempBonus = (editing ? editData.temp_bonuses?.[key] : char.temp_bonuses?.[key]) || 0;
+            const base = editing ? (editData[key] ?? 0) : char[key];
+            const total = base + equipBonus + tempBonus;
+            return (
+              <div key={key} className="flex items-center gap-3">
+                <div className="stat-badge">
+                  {editing ? (
+                    <input
+                      type="number"
+                      value={editData[key] ?? 0}
+                      onChange={e => setEditData({ ...editData, [key]: Number(e.target.value) })}
+                      className="w-8 text-center bg-transparent text-fantasy-gold"
+                      min={1}
+                      max={12}
+                    />
+                  ) : (
+                    total
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-body text-parchment-200 text-sm font-semibold">{label}</span>
+                    {editing && (
+                      <div className="flex items-center gap-1 ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => setEditData({ ...editData, temp_bonuses: { ...editData.temp_bonuses, [key]: (editData.temp_bonuses?.[key] || 0) - 1 } })}
+                          className="w-5 h-5 flex items-center justify-center rounded bg-cyan-900/50 text-cyan-300 border border-cyan-700 hover:bg-cyan-800/50 text-xs font-bold"
+                        >-</button>
+                        <span className="text-cyan-300 text-xs font-bold w-4 text-center">{editData.temp_bonuses?.[key] || 0}</span>
+                        <button
+                          type="button"
+                          onClick={() => setEditData({ ...editData, temp_bonuses: { ...editData.temp_bonuses, [key]: (editData.temp_bonuses?.[key] || 0) + 1 } })}
+                          className="w-5 h-5 flex items-center justify-center rounded bg-cyan-900/50 text-cyan-300 border border-cyan-700 hover:bg-cyan-800/50 text-xs font-bold"
+                        >+</button>
+                      </div>
+                    )}
+                  </div>
+                  {!editing && (equipBonus > 0 || tempBonus !== 0) && (
+                    <span className="text-xs">
+                      <span className="text-parchment-400">({base}</span>
+                      {equipBonus > 0 && <span className="text-green-400">+{equipBonus}</span>}
+                      {tempBonus > 0 && <span className="text-cyan-400">+{tempBonus}</span>}
+                      {tempBonus < 0 && <span className="text-cyan-400">{tempBonus}</span>}
+                      <span className="text-parchment-400">)</span>
+                    </span>
+                  )}
+                </div>
               </div>
-              <span className="font-body text-parchment-200 text-sm font-semibold">{label}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -292,12 +356,30 @@ export default function CharacterSheet() {
                 style={{ width: `${(char.stamina / char.max_stamina) * 100}%` }}
               />
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span className="font-body text-parchment-200 font-semibold">Défense</span>
               {editing ? (
-                <input type="number" value={editData.defence} onChange={e => setEditData({ ...editData, defence: Math.max(0, Number(e.target.value)) })} className="fantasy-input w-16 text-center text-sm" min={0} />
+                <div className="flex items-center gap-2">
+                  <input type="number" value={editData.defence} onChange={e => setEditData({ ...editData, defence: Math.max(0, Number(e.target.value)) })} className="fantasy-input w-16 text-center text-sm" min={0} />
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => setEditData({ ...editData, temp_bonuses: { ...editData.temp_bonuses, defence: (editData.temp_bonuses?.defence || 0) - 1 } })} className="w-5 h-5 flex items-center justify-center rounded bg-cyan-900/50 text-cyan-300 border border-cyan-700 hover:bg-cyan-800/50 text-xs font-bold">-</button>
+                    <span className="text-cyan-300 text-xs font-bold w-4 text-center">{editData.temp_bonuses?.defence || 0}</span>
+                    <button type="button" onClick={() => setEditData({ ...editData, temp_bonuses: { ...editData.temp_bonuses, defence: (editData.temp_bonuses?.defence || 0) + 1 } })} className="w-5 h-5 flex items-center justify-center rounded bg-cyan-900/50 text-cyan-300 border border-cyan-700 hover:bg-cyan-800/50 text-xs font-bold">+</button>
+                  </div>
+                </div>
               ) : (
-                <span className="font-medieval text-xl text-fantasy-gold">{char.defence}</span>
+                <span className="font-medieval text-xl text-fantasy-gold">
+                  {char.defence + (equipBonuses['defence'] || 0) + (char.temp_bonuses?.defence || 0)}
+                  {((equipBonuses['defence'] || 0) > 0 || (char.temp_bonuses?.defence || 0) !== 0) && (
+                    <span className="text-xs ml-1 font-body">
+                      <span className="text-parchment-400">({char.defence}</span>
+                      {(equipBonuses['defence'] || 0) > 0 && <span className="text-green-400">+{equipBonuses['defence']}</span>}
+                      {(char.temp_bonuses?.defence || 0) > 0 && <span className="text-cyan-400">+{char.temp_bonuses.defence}</span>}
+                      {(char.temp_bonuses?.defence || 0) < 0 && <span className="text-cyan-400">{char.temp_bonuses.defence}</span>}
+                      <span className="text-parchment-400">)</span>
+                    </span>
+                  )}
+                </span>
               )}
             </div>
             <div className="flex justify-between">
@@ -335,22 +417,215 @@ export default function CharacterSheet() {
 
         {/* Equipment */}
         <div className="parchment-card">
-          <h3 className="section-title">Équipement ({(char.equipment || []).length}/12)</h3>
+          <h3 className="section-title">Équipement ({(editing ? editData.equipment : char.equipment || []).length}/12)</h3>
           <div className="space-y-2">
-            {(char.equipment || []).length === 0 ? (
-              <p className="text-parchment-500 italic">Aucun équipement</p>
-            ) : (
-              (char.equipment || []).map((item: EquipmentItem, i: number) => (
-                <div key={i} className="flex items-center justify-between py-1 border-b border-parchment-600/50 last:border-0">
-                  <div>
-                    <span className="font-body text-parchment-100">{item.name}</span>
-                    {item.bonus && (
-                      <span className="text-xs text-fantasy-gold ml-2">(+{item.bonus.value} {item.bonus.stat})</span>
+            {editing ? (
+              <>
+                {(editData.equipment || []).length === 0 ? (
+                  <p className="text-parchment-500 italic">Aucun équipement</p>
+                ) : (
+                  (editData.equipment || []).map((item: EquipmentItem, i: number) => (
+                    <div key={i} className="flex items-center justify-between py-1 border-b border-parchment-600/50 last:border-0">
+                      <div>
+                        <span className="font-body text-parchment-100">{item.name}</span>
+                        {item.bonus && (
+                          <span className="text-xs text-fantasy-gold ml-2">(+{item.bonus.value} {item.bonus.stat})</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-parchment-500 capitalize">{item.type}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newEquip = [...(editData.equipment || [])];
+                            newEquip.splice(i, 1);
+                            setEditData({ ...editData, equipment: newEquip });
+                          }}
+                          className="w-5 h-5 flex items-center justify-center rounded bg-red-900/50 text-red-400 border border-red-700 hover:bg-red-800/50 text-xs font-bold"
+                        >✕</button>
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {/* Recherche catalogue */}
+                {(editData.equipment || []).length < 12 && (
+                  <div className="pt-2 space-y-2">
+                    <div className="relative" ref={equipSearchRef}>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={equipSearch}
+                          onChange={e => { setEquipSearch(e.target.value); setEquipDropdownOpen(true); }}
+                          onFocus={() => setEquipDropdownOpen(true)}
+                          placeholder="Rechercher un objet..."
+                          className="fantasy-input flex-1 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCatalog(true)}
+                          className="fantasy-button text-xs whitespace-nowrap"
+                        >Catalogue</button>
+                      </div>
+                      {equipDropdownOpen && (() => {
+                        const filtered = equipSearch.length >= 1
+                          ? allEquipment.filter(e => e.name.toLowerCase().includes(equipSearch.toLowerCase()))
+                          : allEquipment;
+                        const grouped: Record<string, EquipmentItem[]> = {};
+                        for (const item of filtered) {
+                          const cat = item.type === 'arme' ? 'Armes' : item.type === 'armure' ? 'Armures' : 'Objets';
+                          (grouped[cat] ||= []).push(item);
+                        }
+                        if (filtered.length === 0) return (
+                          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-parchment-900 border border-fantasy-gold/50 rounded-lg shadow-xl p-3">
+                            <p className="text-parchment-500 text-sm italic">Aucun résultat</p>
+                          </div>
+                        );
+                        return (
+                          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-parchment-900 border border-fantasy-gold/50 rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                            {['Armes', 'Armures', 'Objets'].map(cat => {
+                              const items = grouped[cat];
+                              if (!items || items.length === 0) return null;
+                              return (
+                                <div key={cat}>
+                                  <div className="px-3 py-1.5 bg-parchment-800/80 sticky top-0 border-b border-fantasy-gold/30">
+                                    <span className="font-medieval text-fantasy-gold text-xs">{cat}</span>
+                                  </div>
+                                  {items.map((item, i) => (
+                                    <button
+                                      key={i}
+                                      type="button"
+                                      onClick={() => {
+                                        setEditData({ ...editData, equipment: [...(editData.equipment || []), item] });
+                                        setEquipSearch('');
+                                        setEquipDropdownOpen(false);
+                                      }}
+                                      className="w-full text-left px-3 py-1.5 hover:bg-parchment-700/50 transition-colors border-b border-parchment-700/20 last:border-0"
+                                    >
+                                      <span className="text-parchment-100 text-sm">{item.name}</span>
+                                      {item.bonus && (
+                                        <span className="text-xs text-fantasy-gold ml-2">(+{item.bonus.value} {statLabels[item.bonus.stat] || item.bonus.stat})</span>
+                                      )}
+                                      {item.description && (
+                                        <p className="text-xs text-parchment-500 mt-0.5">{item.description}</p>
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Objet personnalisé */}
+                    {!showCustomItemForm ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomItemForm(true)}
+                        className="text-sm text-parchment-400 hover:text-fantasy-gold transition-colors"
+                      >+ Objet personnalisé</button>
+                    ) : (
+                      <div className="p-3 bg-parchment-800/50 rounded-lg border border-parchment-600 space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={customItem.name}
+                            onChange={e => setCustomItem({ ...customItem, name: e.target.value })}
+                            placeholder="Nom de l'objet"
+                            className="fantasy-input flex-1 text-sm"
+                          />
+                          <select
+                            value={customItem.type}
+                            onChange={e => setCustomItem({ ...customItem, type: e.target.value as 'arme' | 'armure' | 'objet' })}
+                            className="fantasy-input text-sm w-24"
+                          >
+                            <option value="arme">Arme</option>
+                            <option value="armure">Armure</option>
+                            <option value="objet">Objet</option>
+                          </select>
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          <span className="text-parchment-400 text-xs">Bonus :</span>
+                          <select
+                            value={customItem.bonusStat}
+                            onChange={e => setCustomItem({ ...customItem, bonusStat: e.target.value })}
+                            className="fantasy-input text-sm flex-1"
+                          >
+                            <option value="">Aucun</option>
+                            <option value="combat">Combat</option>
+                            <option value="charisma">Charisme</option>
+                            <option value="magic">Magie</option>
+                            <option value="sanctity">Piété</option>
+                            <option value="scouting">Exploration</option>
+                            <option value="thievery">Adresse</option>
+                            <option value="defence">Défense</option>
+                          </select>
+                          {customItem.bonusStat && (
+                            <input
+                              type="number"
+                              value={customItem.bonusValue}
+                              onChange={e => setCustomItem({ ...customItem, bonusValue: e.target.value })}
+                              placeholder="+1"
+                              className="fantasy-input text-sm w-16 text-center"
+                              min={1}
+                              max={10}
+                            />
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!customItem.name.trim()) return;
+                              const newItem: EquipmentItem = {
+                                name: customItem.name.trim(),
+                                type: customItem.type,
+                              };
+                              if (customItem.bonusStat && customItem.bonusValue) {
+                                newItem.bonus = { stat: customItem.bonusStat, value: Number(customItem.bonusValue) };
+                              }
+                              setEditData({ ...editData, equipment: [...(editData.equipment || []), newItem] });
+                              setCustomItem({ name: '', type: 'objet', bonusStat: '', bonusValue: '' });
+                              setShowCustomItemForm(false);
+                            }}
+                            className="fantasy-button text-xs"
+                          >Ajouter</button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowCustomItemForm(false); setCustomItem({ name: '', type: 'objet', bonusStat: '', bonusValue: '' }); }}
+                            className="text-xs text-parchment-500 hover:text-parchment-300 transition-colors"
+                          >Annuler</button>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <span className="text-xs text-parchment-500 capitalize">{item.type}</span>
-                </div>
-              ))
+                )}
+              </>
+            ) : (
+              <>
+                {(char.equipment || []).length === 0 ? (
+                  <p className="text-parchment-500 italic">Aucun équipement</p>
+                ) : (
+                  (char.equipment || []).map((item: EquipmentItem, i: number) => (
+                    <div key={i} className="flex items-center justify-between py-1 border-b border-parchment-600/50 last:border-0">
+                      <div>
+                        <span className="font-body text-parchment-100">{item.name}</span>
+                        {item.bonus && (
+                          <span className="text-xs text-fantasy-gold ml-2">(+{item.bonus.value} {statLabels[item.bonus.stat] || item.bonus.stat})</span>
+                        )}
+                      </div>
+                      <span className="text-xs text-parchment-500 capitalize">{item.type}</span>
+                    </div>
+                  ))
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowCatalog(true)}
+                  className="mt-2 text-sm text-parchment-400 hover:text-fantasy-gold transition-colors"
+                >Consulter le catalogue</button>
+              </>
             )}
           </div>
         </div>
@@ -739,6 +1014,107 @@ export default function CharacterSheet() {
                 >
                   Garder les stats actuelles
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Catalogue d'équipement */}
+      <AnimatePresence>
+        {showCatalog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowCatalog(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-parchment-900 border-2 border-fantasy-gold rounded-lg p-6 max-w-2xl w-full max-h-[80vh] flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-medieval text-xl text-fantasy-gold">Catalogue d'équipement</h3>
+                <button onClick={() => setShowCatalog(false)} className="text-parchment-400 hover:text-parchment-200 text-xl">&times;</button>
+              </div>
+
+              {/* Filtres par type */}
+              <div className="flex gap-2 mb-4">
+                {([['tous', 'Tous'], ['arme', 'Armes'], ['armure', 'Armures'], ['objet', 'Objets']] as const).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setCatalogFilter(key)}
+                    className={`px-3 py-1 rounded font-medieval text-sm transition-all ${
+                      catalogFilter === key
+                        ? 'bg-fantasy-gold/20 text-fantasy-gold border border-fantasy-gold/50'
+                        : 'bg-parchment-800/50 text-parchment-400 border border-parchment-600 hover:border-parchment-500'
+                    }`}
+                  >{label}</button>
+                ))}
+              </div>
+
+              {/* Liste scrollable */}
+              <div className="overflow-y-auto flex-1 space-y-1 pr-1">
+                {(() => {
+                  const items = catalogFilter === 'tous' ? allEquipment : allEquipment.filter(e => e.type === catalogFilter);
+                  const groups: Record<string, EquipmentItem[]> = {};
+                  for (const item of items) {
+                    const cat = item.type === 'arme' ? 'Armes' : item.type === 'armure' ? 'Armures' : 'Objets';
+                    (groups[cat] ||= []).push(item);
+                  }
+                  return ['Armes', 'Armures', 'Objets'].map(cat => {
+                    const catItems = groups[cat];
+                    if (!catItems || catItems.length === 0) return null;
+                    return (
+                      <div key={cat} className="mb-4">
+                        <h4 className="font-medieval text-lg text-fantasy-gold mb-2 border-b border-fantasy-gold/30 pb-1">
+                          {cat} ({catItems.length})
+                        </h4>
+                        <div className="space-y-1">
+                          {catItems.map((item, i) => (
+                            <div
+                              key={i}
+                              className="flex items-start justify-between p-2 rounded hover:bg-parchment-800/50 transition-colors group"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-body text-parchment-100 font-semibold">{item.name}</span>
+                                  {item.bonus && (
+                                    <span className="px-1.5 py-0.5 rounded bg-fantasy-gold/15 text-fantasy-gold text-xs font-bold">
+                                      +{item.bonus.value} {statLabels[item.bonus.stat] || item.bonus.stat}
+                                    </span>
+                                  )}
+                                  {!item.bonus && (
+                                    <span className="px-1.5 py-0.5 rounded bg-parchment-700/50 text-parchment-500 text-xs">
+                                      pas de bonus
+                                    </span>
+                                  )}
+                                </div>
+                                {item.description && (
+                                  <p className="text-xs text-parchment-400 mt-0.5">{item.description}</p>
+                                )}
+                              </div>
+                              {editing && (editData.equipment || []).length < 12 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditData({ ...editData, equipment: [...(editData.equipment || []), item] });
+                                  }}
+                                  className="ml-2 px-2 py-1 rounded bg-green-900/50 text-green-400 border border-green-700 hover:bg-green-800/50 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                >+ Ajouter</button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </motion.div>
           </motion.div>
