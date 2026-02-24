@@ -5,6 +5,12 @@ import App from './App';
 import { AuthProvider } from './hooks/useAuth';
 import './styles/index.css';
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js');
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
