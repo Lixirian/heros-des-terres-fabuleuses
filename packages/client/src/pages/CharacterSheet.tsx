@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { api } from '../utils/api';
 import { Character, EquipmentItem } from '../data/types';
+import { books } from '../data/books';
 
 const statLabels: Record<string, string> = {
   combat: 'COMBAT',
@@ -20,6 +21,8 @@ export default function CharacterSheet() {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [saving, setSaving] = useState(false);
+  const [combatLogs, setCombatLogs] = useState<any[]>([]);
+  const [bookProgress, setBookProgress] = useState<Record<number, number>>({});
 
   useEffect(() => {
     if (id) {
@@ -37,6 +40,18 @@ export default function CharacterSheet() {
           setEditData(parsed);
         })
         .catch(() => navigate('/'));
+
+      // Charger les logs de combat
+      api.getCombatLogs(Number(id)).then(setCombatLogs).catch(() => {});
+
+      // Charger la progression par livre
+      Promise.all(
+        books.map(b => api.getBookProgress(Number(id), b.id).then(p => ({ bookId: b.id, count: p.length })))
+      ).then(results => {
+        const progress: Record<number, number> = {};
+        results.forEach(r => { progress[r.bookId] = r.count; });
+        setBookProgress(progress);
+      }).catch(() => {});
     }
   }, [id, navigate]);
 
@@ -83,9 +98,9 @@ export default function CharacterSheet() {
                   className="fantasy-input text-xl font-medieval"
                 />
               ) : (
-                <h2 className="font-medieval text-3xl text-fantasy-brown">{char.name}</h2>
+                <h2 className="font-medieval text-3xl text-fantasy-gold">{char.name}</h2>
               )}
-              <p className="text-parchment-600">{char.profession} - Rang {char.rank}</p>
+              <p className="text-parchment-300">{char.profession} - Rang {char.rank}</p>
               {char.god && <p className="text-parchment-500 text-sm italic">Divinité : {char.god}</p>}
             </div>
           </div>
@@ -130,7 +145,7 @@ export default function CharacterSheet() {
                   char[key]
                 )}
               </div>
-              <span className="font-body text-parchment-700 text-sm font-semibold">{label}</span>
+              <span className="font-body text-parchment-200 text-sm font-semibold">{label}</span>
             </div>
           ))}
         </div>
@@ -142,7 +157,7 @@ export default function CharacterSheet() {
           <h3 className="section-title">Stats vitales</h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="font-body text-parchment-700 font-semibold">Endurance</span>
+              <span className="font-body text-parchment-200 font-semibold">Endurance</span>
               {editing ? (
                 <div className="flex gap-1 items-center">
                   <input type="number" value={editData.stamina} onChange={e => setEditData({ ...editData, stamina: Number(e.target.value) })} className="fantasy-input w-16 text-center text-sm" />
@@ -153,14 +168,14 @@ export default function CharacterSheet() {
                 <span className="font-medieval text-xl text-fantasy-gold">{char.stamina} / {char.max_stamina}</span>
               )}
             </div>
-            <div className="w-full bg-parchment-400/30 rounded-full h-3">
+            <div className="w-full bg-parchment-700/30 rounded-full h-3">
               <div
                 className="h-3 rounded-full bg-gradient-to-r from-fantasy-red to-fantasy-gold transition-all duration-500"
                 style={{ width: `${(char.stamina / char.max_stamina) * 100}%` }}
               />
             </div>
             <div className="flex justify-between">
-              <span className="font-body text-parchment-700 font-semibold">Défense</span>
+              <span className="font-body text-parchment-200 font-semibold">Défense</span>
               {editing ? (
                 <input type="number" value={editData.defence} onChange={e => setEditData({ ...editData, defence: Number(e.target.value) })} className="fantasy-input w-16 text-center text-sm" />
               ) : (
@@ -168,7 +183,7 @@ export default function CharacterSheet() {
               )}
             </div>
             <div className="flex justify-between">
-              <span className="font-body text-parchment-700 font-semibold">Argent (chardes)</span>
+              <span className="font-body text-parchment-200 font-semibold">Argent (chardes)</span>
               {editing ? (
                 <input type="number" value={editData.money} onChange={e => setEditData({ ...editData, money: Number(e.target.value) })} className="fantasy-input w-16 text-center text-sm" />
               ) : (
@@ -176,7 +191,7 @@ export default function CharacterSheet() {
               )}
             </div>
             <div className="flex justify-between">
-              <span className="font-body text-parchment-700 font-semibold">Rang</span>
+              <span className="font-body text-parchment-200 font-semibold">Rang</span>
               {editing ? (
                 <input type="number" value={editData.rank} onChange={e => setEditData({ ...editData, rank: Number(e.target.value) })} className="fantasy-input w-16 text-center text-sm" min={1} max={10} />
               ) : (
@@ -194,9 +209,9 @@ export default function CharacterSheet() {
               <p className="text-parchment-500 italic">Aucun équipement</p>
             ) : (
               (char.equipment || []).map((item: EquipmentItem, i: number) => (
-                <div key={i} className="flex items-center justify-between py-1 border-b border-parchment-300/50 last:border-0">
+                <div key={i} className="flex items-center justify-between py-1 border-b border-parchment-600/50 last:border-0">
                   <div>
-                    <span className="font-body text-parchment-800">{item.name}</span>
+                    <span className="font-body text-parchment-100">{item.name}</span>
                     {item.bonus && (
                       <span className="text-xs text-fantasy-gold ml-2">(+{item.bonus.value} {item.bonus.stat})</span>
                     )}
@@ -212,42 +227,117 @@ export default function CharacterSheet() {
       {/* Codewords, Titles, Blessings */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="parchment-card">
-          <h3 className="font-medieval text-lg text-fantasy-brown mb-2">Coche-mots</h3>
+          <h3 className="font-medieval text-lg text-fantasy-gold mb-2">Coche-mots</h3>
           {(char.codewords || []).length === 0 ? (
             <p className="text-parchment-500 text-sm italic">Aucun</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {(char.codewords || []).map((cw: string, i: number) => (
-                <span key={i} className="px-2 py-1 bg-parchment-300/50 rounded text-sm text-parchment-800">{cw}</span>
+                <span key={i} className="px-2 py-1 bg-parchment-700/50 rounded text-sm text-parchment-100">{cw}</span>
               ))}
             </div>
           )}
         </div>
         <div className="parchment-card">
-          <h3 className="font-medieval text-lg text-fantasy-brown mb-2">Titres</h3>
+          <h3 className="font-medieval text-lg text-fantasy-gold mb-2">Titres</h3>
           {(char.titles || []).length === 0 ? (
             <p className="text-parchment-500 text-sm italic">Aucun</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {(char.titles || []).map((t: string, i: number) => (
-                <span key={i} className="px-2 py-1 bg-fantasy-gold/20 rounded text-sm text-parchment-800 font-semibold">{t}</span>
+                <span key={i} className="px-2 py-1 bg-fantasy-gold/20 rounded text-sm text-parchment-100 font-semibold">{t}</span>
               ))}
             </div>
           )}
         </div>
         <div className="parchment-card">
-          <h3 className="font-medieval text-lg text-fantasy-brown mb-2">Bénédictions</h3>
+          <h3 className="font-medieval text-lg text-fantasy-gold mb-2">Bénédictions</h3>
           {(char.blessings || []).length === 0 ? (
             <p className="text-parchment-500 text-sm italic">Aucune</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {(char.blessings || []).map((b: string, i: number) => (
-                <span key={i} className="px-2 py-1 bg-purple-200/50 rounded text-sm text-parchment-800">{b}</span>
+                <span key={i} className="px-2 py-1 bg-purple-900/50 rounded text-sm text-parchment-100">{b}</span>
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Combat Statistics */}
+      {combatLogs.length > 0 && (
+        <div className="parchment-card">
+          <h3 className="section-title">Statistiques de combat</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="text-center">
+              <p className="font-medieval text-2xl text-fantasy-gold">{combatLogs.length}</p>
+              <p className="text-parchment-300 text-sm">Combats</p>
+            </div>
+            <div className="text-center">
+              <p className="font-medieval text-2xl text-green-400">{combatLogs.filter(l => l.result === 'player').length}</p>
+              <p className="text-parchment-300 text-sm">Victoires</p>
+            </div>
+            <div className="text-center">
+              <p className="font-medieval text-2xl text-fantasy-red">{combatLogs.filter(l => l.result === 'enemy').length}</p>
+              <p className="text-parchment-300 text-sm">Défaites</p>
+            </div>
+            <div className="text-center">
+              <p className="font-medieval text-2xl text-fantasy-gold">
+                {combatLogs.length > 0 ? Math.round((combatLogs.filter(l => l.result === 'player').length / combatLogs.length) * 100) : 0}%
+              </p>
+              <p className="text-parchment-300 text-sm">Taux victoire</p>
+            </div>
+          </div>
+          <h4 className="font-medieval text-lg text-fantasy-gold mb-2">Derniers combats</h4>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {combatLogs.slice(0, 10).map((log: any) => (
+              <div key={log.id} className="flex items-center justify-between p-2 bg-parchment-800/50 rounded border border-parchment-600 text-sm">
+                <div>
+                  <span className="text-parchment-100 font-semibold">vs {log.enemy_name}</span>
+                  <span className="text-parchment-400 text-xs ml-2">(DEF {log.enemy_defence}, END {log.enemy_stamina})</span>
+                </div>
+                <span className={`font-medieval text-sm ${log.result === 'player' ? 'text-green-400' : 'text-fantasy-red'}`}>
+                  {log.result === 'player' ? 'Victoire' : 'Défaite'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Book Progress */}
+      {Object.values(bookProgress).some(v => v > 0) && (
+        <div className="parchment-card">
+          <h3 className="section-title">Progression par livre</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {books.map(book => {
+              const visited = bookProgress[book.id] || 0;
+              if (visited === 0) return null;
+              const percent = Math.round((visited / book.maxCode) * 100);
+              return (
+                <div key={book.id} className="p-3 rounded-lg border border-parchment-600">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                      style={{ backgroundColor: book.color }}
+                    >
+                      {book.id}
+                    </span>
+                    <span className="text-parchment-100 text-sm font-medieval">{book.region}</span>
+                  </div>
+                  <div className="w-full bg-parchment-700/30 rounded-full h-2 mb-1">
+                    <div
+                      className="h-2 rounded-full transition-all"
+                      style={{ width: `${percent}%`, backgroundColor: book.color }}
+                    />
+                  </div>
+                  <p className="text-parchment-400 text-xs">{visited}/{book.maxCode} codes ({percent}%)</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Notes & Backstory */}
       <div className="parchment-card">
@@ -255,7 +345,7 @@ export default function CharacterSheet() {
         {editing ? (
           <div className="space-y-4">
             <div>
-              <label className="text-sm text-parchment-700 font-semibold block mb-1">Histoire</label>
+              <label className="text-sm text-parchment-200 font-semibold block mb-1">Histoire</label>
               <textarea
                 value={editData.backstory || ''}
                 onChange={e => setEditData({ ...editData, backstory: e.target.value })}
@@ -263,7 +353,7 @@ export default function CharacterSheet() {
               />
             </div>
             <div>
-              <label className="text-sm text-parchment-700 font-semibold block mb-1">Notes</label>
+              <label className="text-sm text-parchment-200 font-semibold block mb-1">Notes</label>
               <textarea
                 value={editData.notes || ''}
                 onChange={e => setEditData({ ...editData, notes: e.target.value })}
@@ -275,14 +365,14 @@ export default function CharacterSheet() {
           <div className="space-y-3">
             {char.backstory && (
               <div>
-                <p className="text-sm font-semibold text-parchment-600 mb-1">Histoire</p>
-                <p className="text-parchment-800 font-body">{char.backstory}</p>
+                <p className="text-sm font-semibold text-parchment-300 mb-1">Histoire</p>
+                <p className="text-parchment-100 font-body">{char.backstory}</p>
               </div>
             )}
             {char.notes && (
               <div>
-                <p className="text-sm font-semibold text-parchment-600 mb-1">Notes</p>
-                <p className="text-parchment-800 font-body whitespace-pre-wrap">{char.notes}</p>
+                <p className="text-sm font-semibold text-parchment-300 mb-1">Notes</p>
+                <p className="text-parchment-100 font-body whitespace-pre-wrap">{char.notes}</p>
               </div>
             )}
             {!char.backstory && !char.notes && (

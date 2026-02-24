@@ -86,7 +86,7 @@ export default function CreateCharacter() {
           onClick={() => setTab('custom')}
           className={`px-6 py-2 rounded-t-lg font-medieval transition-all ${
             tab === 'custom'
-              ? 'bg-parchment-100 text-fantasy-brown border-t-2 border-x-2 border-fantasy-gold'
+              ? 'bg-parchment-800 text-fantasy-gold border-t-2 border-x-2 border-fantasy-gold'
               : 'bg-parchment-800 text-parchment-400 hover:text-parchment-200'
           }`}
         >
@@ -96,7 +96,7 @@ export default function CreateCharacter() {
           onClick={() => setTab('pregen')}
           className={`px-6 py-2 rounded-t-lg font-medieval transition-all ${
             tab === 'pregen'
-              ? 'bg-parchment-100 text-fantasy-brown border-t-2 border-x-2 border-fantasy-gold'
+              ? 'bg-parchment-800 text-fantasy-gold border-t-2 border-x-2 border-fantasy-gold'
               : 'bg-parchment-800 text-parchment-400 hover:text-parchment-200'
           }`}
         >
@@ -105,7 +105,7 @@ export default function CreateCharacter() {
       </div>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded text-sm">{error}</div>
+        <div className="bg-red-900/30 border border-red-600 text-red-300 px-4 py-2 rounded text-sm">{error}</div>
       )}
 
       <AnimatePresence mode="wait">
@@ -120,13 +120,13 @@ export default function CreateCharacter() {
           >
             {/* Name */}
             <div>
-              <label className="block text-sm font-body text-parchment-700 mb-1 font-semibold">Nom du personnage</label>
+              <label className="block text-sm font-body text-parchment-200 mb-1 font-semibold">Nom du personnage</label>
               <input value={name} onChange={e => setName(e.target.value)} className="fantasy-input" required placeholder="Ex: Aldric le Brave" />
             </div>
 
             {/* Profession */}
             <div>
-              <label className="block text-sm font-body text-parchment-700 mb-2 font-semibold">Profession</label>
+              <label className="block text-sm font-body text-parchment-200 mb-2 font-semibold">Profession</label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {professions.map(p => (
                   <button
@@ -136,11 +136,11 @@ export default function CreateCharacter() {
                     className={`p-3 rounded-lg border-2 transition-all text-left ${
                       profession === p.name
                         ? 'border-fantasy-gold bg-fantasy-gold/10'
-                        : 'border-parchment-300 hover:border-parchment-400'
+                        : 'border-parchment-600 hover:border-parchment-500'
                     }`}
                   >
-                    <p className="font-medieval text-fantasy-brown">{p.nameFr}</p>
-                    <p className="text-xs text-parchment-600 mt-1">{p.description.substring(0, 60)}...</p>
+                    <p className="font-medieval text-fantasy-gold">{p.nameFr}</p>
+                    <p className="text-xs text-parchment-300 mt-1">{p.description.substring(0, 60)}...</p>
                   </button>
                 ))}
               </div>
@@ -148,7 +148,7 @@ export default function CreateCharacter() {
 
             {/* Rank Range */}
             <div>
-              <label className="block text-sm font-body text-parchment-700 mb-2 font-semibold">Niveau de départ</label>
+              <label className="block text-sm font-body text-parchment-200 mb-2 font-semibold">Niveau de départ</label>
               <div className="flex gap-3">
                 {(['1-2', '3-4', '5-6'] as RankRange[]).map(r => (
                   <button
@@ -157,8 +157,8 @@ export default function CreateCharacter() {
                     onClick={() => setRankRange(r)}
                     className={`px-6 py-2 rounded-lg border-2 font-medieval transition-all ${
                       rankRange === r
-                        ? 'border-fantasy-gold bg-fantasy-gold/10 text-fantasy-brown'
-                        : 'border-parchment-300 text-parchment-600 hover:border-parchment-400'
+                        ? 'border-fantasy-gold bg-fantasy-gold/10 text-fantasy-gold'
+                        : 'border-parchment-300 text-parchment-300 hover:border-parchment-400'
                     }`}
                   >
                     Rang {r}
@@ -169,40 +169,40 @@ export default function CreateCharacter() {
 
             {/* Stats Preview */}
             {stats && (
-              <div className="bg-parchment-50 rounded-lg p-4 border border-parchment-300">
-                <h4 className="font-medieval text-lg text-fantasy-brown mb-3">Caractéristiques ({profession} rang {rankRange})</h4>
+              <div className="bg-parchment-800/50 rounded-lg p-4 border border-parchment-600">
+                <h4 className="font-medieval text-lg text-fantasy-gold mb-3">Caractéristiques ({profession} rang {rankRange})</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="text-center">
                     <div className="stat-badge mx-auto">{stats.combat}</div>
-                    <p className="text-xs text-parchment-600 mt-1">COMBAT</p>
+                    <p className="text-xs text-parchment-300 mt-1">COMBAT</p>
                   </div>
                   <div className="text-center">
                     <div className="stat-badge mx-auto">{stats.charisma}</div>
-                    <p className="text-xs text-parchment-600 mt-1">CHARISME</p>
+                    <p className="text-xs text-parchment-300 mt-1">CHARISME</p>
                   </div>
                   <div className="text-center">
                     <div className="stat-badge mx-auto">{stats.magic}</div>
-                    <p className="text-xs text-parchment-600 mt-1">MAGIE</p>
+                    <p className="text-xs text-parchment-300 mt-1">MAGIE</p>
                   </div>
                   <div className="text-center">
                     <div className="stat-badge mx-auto">{stats.sanctity}</div>
-                    <p className="text-xs text-parchment-600 mt-1">PIÉTÉ</p>
+                    <p className="text-xs text-parchment-300 mt-1">PIÉTÉ</p>
                   </div>
                   <div className="text-center">
                     <div className="stat-badge mx-auto">{stats.scouting}</div>
-                    <p className="text-xs text-parchment-600 mt-1">EXPLORATION</p>
+                    <p className="text-xs text-parchment-300 mt-1">EXPLORATION</p>
                   </div>
                   <div className="text-center">
                     <div className="stat-badge mx-auto">{stats.thievery}</div>
-                    <p className="text-xs text-parchment-600 mt-1">ADRESSE</p>
+                    <p className="text-xs text-parchment-300 mt-1">ADRESSE</p>
                   </div>
                   <div className="text-center">
                     <div className="stat-badge mx-auto">{stats.defence}</div>
-                    <p className="text-xs text-parchment-600 mt-1">DÉFENSE</p>
+                    <p className="text-xs text-parchment-300 mt-1">DÉFENSE</p>
                   </div>
                   <div className="text-center">
                     <div className="stat-badge mx-auto">{stats.stamina}</div>
-                    <p className="text-xs text-parchment-600 mt-1">ENDURANCE</p>
+                    <p className="text-xs text-parchment-300 mt-1">ENDURANCE</p>
                   </div>
                 </div>
               </div>
@@ -210,7 +210,7 @@ export default function CreateCharacter() {
 
             {/* God */}
             <div>
-              <label className="block text-sm font-body text-parchment-700 mb-1 font-semibold">Divinité</label>
+              <label className="block text-sm font-body text-parchment-200 mb-1 font-semibold">Divinité</label>
               <select value={god} onChange={e => setGod(e.target.value)} className="fantasy-input">
                 {gods.map(g => (
                   <option key={g.name} value={g.name}>{g.name} - {g.domain}</option>
@@ -220,16 +220,16 @@ export default function CreateCharacter() {
 
             {/* Backstory */}
             <div>
-              <label className="block text-sm font-body text-parchment-700 mb-1 font-semibold">Histoire (optionnel)</label>
+              <label className="block text-sm font-body text-parchment-200 mb-1 font-semibold">Histoire (optionnel)</label>
               <textarea value={backstory} onChange={e => setBackstory(e.target.value)} className="fantasy-input h-24 resize-y" placeholder="L'histoire de votre personnage..." />
             </div>
 
             {/* Starting Equipment Preview */}
             <div>
-              <h4 className="font-medieval text-lg text-fantasy-brown mb-2">Équipement de départ</h4>
+              <h4 className="font-medieval text-lg text-fantasy-gold mb-2">Équipement de départ</h4>
               <div className="flex flex-wrap gap-2">
                 {profData.startingEquipment.map((item, i) => (
-                  <span key={i} className="px-3 py-1 bg-parchment-300/50 rounded text-sm text-parchment-800">
+                  <span key={i} className="px-3 py-1 bg-parchment-700/50 rounded text-sm text-parchment-100">
                     {item.name}
                     {item.bonus && <span className="text-fantasy-gold ml-1">(+{item.bonus.value} {item.bonus.stat})</span>}
                   </span>
@@ -252,20 +252,28 @@ export default function CreateCharacter() {
             {pregenCharacters.map(pregen => (
               <div key={pregen.pregen_id} className="parchment-card">
                 <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-fantasy-gold to-parchment-400 flex items-center justify-center text-parchment-900 font-medieval text-2xl shadow-md flex-shrink-0 animate-breathe">
-                    {pregen.name[0]}
-                  </div>
+                  {pregen.portrait ? (
+                    <img
+                      src={pregen.portrait}
+                      alt={pregen.name}
+                      className="w-16 h-16 rounded-full object-cover shadow-md flex-shrink-0 border-2 border-fantasy-gold/50 animate-breathe"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-fantasy-gold to-parchment-400 flex items-center justify-center text-parchment-900 font-medieval text-2xl shadow-md flex-shrink-0 animate-breathe">
+                      {pregen.name[0]}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medieval text-xl text-fantasy-brown">{pregen.name}</h3>
-                    <p className="text-parchment-600 text-sm">{pregen.profession} - Rang {pregen.rank}</p>
-                    <p className="text-parchment-700 text-sm mt-1">{pregen.description}</p>
+                    <h3 className="font-medieval text-xl text-fantasy-gold">{pregen.name}</h3>
+                    <p className="text-parchment-300 text-sm">{pregen.profession} - Rang {pregen.rank}</p>
+                    <p className="text-parchment-200 text-sm mt-1">{pregen.description}</p>
                     <div className="flex gap-2 mt-2 flex-wrap">
-                      <span className="text-xs bg-parchment-300/50 px-2 py-0.5 rounded">COM {pregen.combat}</span>
-                      <span className="text-xs bg-parchment-300/50 px-2 py-0.5 rounded">CHA {pregen.charisma}</span>
-                      <span className="text-xs bg-parchment-300/50 px-2 py-0.5 rounded">MAG {pregen.magic}</span>
-                      <span className="text-xs bg-parchment-300/50 px-2 py-0.5 rounded">PIÉ {pregen.sanctity}</span>
-                      <span className="text-xs bg-parchment-300/50 px-2 py-0.5 rounded">EXP {pregen.scouting}</span>
-                      <span className="text-xs bg-parchment-300/50 px-2 py-0.5 rounded">ADR {pregen.thievery}</span>
+                      <span className="text-xs bg-parchment-700/50 px-2 py-0.5 rounded">COM {pregen.combat}</span>
+                      <span className="text-xs bg-parchment-700/50 px-2 py-0.5 rounded">CHA {pregen.charisma}</span>
+                      <span className="text-xs bg-parchment-700/50 px-2 py-0.5 rounded">MAG {pregen.magic}</span>
+                      <span className="text-xs bg-parchment-700/50 px-2 py-0.5 rounded">PIÉ {pregen.sanctity}</span>
+                      <span className="text-xs bg-parchment-700/50 px-2 py-0.5 rounded">EXP {pregen.scouting}</span>
+                      <span className="text-xs bg-parchment-700/50 px-2 py-0.5 rounded">ADR {pregen.thievery}</span>
                     </div>
                     <div className="flex gap-2 mt-1">
                       <span className="text-xs text-parchment-500">END: {pregen.stamina}</span>

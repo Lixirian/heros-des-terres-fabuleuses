@@ -119,10 +119,10 @@ export default function RulesPage() {
             className="parchment-card"
           >
             <h3 className="section-title">{section.title}</h3>
-            <div className="text-parchment-800 font-body whitespace-pre-line leading-relaxed">
+            <div className="text-parchment-100 font-body whitespace-pre-line leading-relaxed">
               {section.content.split(/(\*\*[^*]+\*\*)/).map((part, j) => {
                 if (part.startsWith('**') && part.endsWith('**')) {
-                  return <strong key={j} className="text-fantasy-brown">{part.slice(2, -2)}</strong>;
+                  return <strong key={j} className="text-fantasy-gold">{part.slice(2, -2)}</strong>;
                 }
                 return <span key={j}>{part}</span>;
               })}

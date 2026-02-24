@@ -39,19 +39,19 @@ export default function RegisterPage() {
         className="parchment-card w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <h1 className="font-medieval text-3xl text-fantasy-brown mb-2">Créer un compte</h1>
-          <p className="text-parchment-600 font-body">Rejoignez l'aventure des Terres Fabuleuses</p>
+          <h1 className="font-medieval text-3xl text-fantasy-gold mb-2">Créer un compte</h1>
+          <p className="text-parchment-300 font-body">Rejoignez l'aventure des Terres Fabuleuses</p>
         </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-sm">
+          <div className="bg-red-900/30 border border-red-600 text-red-300 px-4 py-2 rounded mb-4 text-sm">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-body text-parchment-700 mb-1">Pseudo</label>
+            <label className="block text-sm font-body text-parchment-200 mb-1">Pseudo</label>
             <input
               type="text"
               value={username}
@@ -62,7 +62,7 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-body text-parchment-700 mb-1">Email</label>
+            <label className="block text-sm font-body text-parchment-200 mb-1">Email</label>
             <input
               type="email"
               value={email}
@@ -72,7 +72,7 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-body text-parchment-700 mb-1">Mot de passe</label>
+            <label className="block text-sm font-body text-parchment-200 mb-1">Mot de passe</label>
             <input
               type="password"
               value={password}
@@ -83,7 +83,7 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-body text-parchment-700 mb-1">Confirmer le mot de passe</label>
+            <label className="block text-sm font-body text-parchment-200 mb-1">Confirmer le mot de passe</label>
             <input
               type="password"
               value={confirm}
@@ -97,7 +97,7 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <p className="text-center mt-6 text-parchment-600 text-sm">
+        <p className="text-center mt-6 text-parchment-300 text-sm">
           Déjà un compte ?{' '}
           <Link to="/login" className="text-fantasy-gold hover:underline font-semibold">
             Se connecter

@@ -32,10 +32,10 @@ export default function HomePage() {
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-6xl mx-auto space-y-8">
       {/* Welcome Banner */}
       <motion.div variants={itemVariants} className="parchment-card text-center">
-        <h2 className="font-medieval text-4xl text-fantasy-brown mb-3">
+        <h2 className="font-medieval text-4xl text-fantasy-gold mb-3">
           Bienvenue, {user?.username} !
         </h2>
-        <p className="text-parchment-700 font-body text-lg max-w-2xl mx-auto">
+        <p className="text-parchment-200 font-body text-lg max-w-2xl mx-auto">
           Explorez les Terres Fabuleuses, créez vos héros et vivez des aventures épiques
           dans ce monde de fantasy inspiré des livres-jeux de Dave Morris et Jamie Thomson.
         </p>
@@ -46,28 +46,28 @@ export default function HomePage() {
         <Link to="/create" className="parchment-card hover:shadow-xl transition-shadow group">
           <div className="text-center">
             <div className="text-4xl mb-3">⚔️</div>
-            <h3 className="font-medieval text-xl text-fantasy-brown group-hover:text-fantasy-gold transition-colors">
+            <h3 className="font-medieval text-xl text-fantasy-gold group-hover:text-fantasy-gold transition-colors">
               Créer un personnage
             </h3>
-            <p className="text-parchment-600 text-sm mt-2">Personnalisé ou prétirés</p>
+            <p className="text-parchment-300 text-sm mt-2">Personnalisé ou prétirés</p>
           </div>
         </Link>
         <Link to="/combat" className="parchment-card hover:shadow-xl transition-shadow group">
           <div className="text-center">
             <div className="text-4xl mb-3">🎲</div>
-            <h3 className="font-medieval text-xl text-fantasy-brown group-hover:text-fantasy-gold transition-colors">
+            <h3 className="font-medieval text-xl text-fantasy-gold group-hover:text-fantasy-gold transition-colors">
               Assistant de combat
             </h3>
-            <p className="text-parchment-600 text-sm mt-2">Lancez les dés et combattez</p>
+            <p className="text-parchment-300 text-sm mt-2">Lancez les dés et combattez</p>
           </div>
         </Link>
         <Link to="/books" className="parchment-card hover:shadow-xl transition-shadow group">
           <div className="text-center">
             <div className="text-4xl mb-3">📖</div>
-            <h3 className="font-medieval text-xl text-fantasy-brown group-hover:text-fantasy-gold transition-colors">
+            <h3 className="font-medieval text-xl text-fantasy-gold group-hover:text-fantasy-gold transition-colors">
               Livres & Codes
             </h3>
-            <p className="text-parchment-600 text-sm mt-2">Naviguez par livre</p>
+            <p className="text-parchment-300 text-sm mt-2">Naviguez par livre</p>
           </div>
         </Link>
       </motion.div>
@@ -79,7 +79,7 @@ export default function HomePage() {
           <p className="text-parchment-400">Chargement...</p>
         ) : characters.length === 0 ? (
           <div className="parchment-card text-center py-8">
-            <p className="text-parchment-600 mb-4">Vous n'avez pas encore de personnage.</p>
+            <p className="text-parchment-300 mb-4">Vous n'avez pas encore de personnage.</p>
             <Link to="/create" className="fantasy-button inline-block">
               Créer mon premier héros
             </Link>
@@ -93,10 +93,10 @@ export default function HomePage() {
                     {char.name[0]}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medieval text-lg text-fantasy-brown group-hover:text-fantasy-gold transition-colors truncate">
+                    <h4 className="font-medieval text-lg text-fantasy-gold group-hover:text-fantasy-gold transition-colors truncate">
                       {char.name}
                     </h4>
-                    <p className="text-parchment-600 text-sm">{char.profession} - Rang {char.rank}</p>
+                    <p className="text-parchment-300 text-sm">{char.profession} - Rang {char.rank}</p>
                     <div className="flex gap-2 mt-1">
                       <span className="text-xs text-parchment-500">END: {char.stamina}/{char.max_stamina}</span>
                       <span className="text-xs text-parchment-500">DEF: {char.defence}</span>
@@ -121,11 +121,11 @@ export default function HomePage() {
                   {char.name[0]}
                 </div>
                 <div>
-                  <h4 className="font-medieval text-lg text-fantasy-brown">{char.name}</h4>
-                  <p className="text-parchment-600 text-xs">{char.profession}</p>
+                  <h4 className="font-medieval text-lg text-fantasy-gold">{char.name}</h4>
+                  <p className="text-parchment-300 text-xs">{char.profession}</p>
                 </div>
               </div>
-              <p className="text-parchment-700 text-sm">{char.description}</p>
+              <p className="text-parchment-200 text-sm">{char.description}</p>
             </div>
           ))}
         </div>
@@ -153,12 +153,12 @@ export default function HomePage() {
                   >
                     {book.id}
                   </span>
-                  <h4 className="font-medieval text-lg text-fantasy-brown group-hover:text-fantasy-gold transition-colors">
+                  <h4 className="font-medieval text-lg text-fantasy-gold group-hover:text-fantasy-gold transition-colors">
                     {book.titleFr}
                   </h4>
                 </div>
-                <p className="text-parchment-600 text-xs italic">{book.title}</p>
-                <p className="text-parchment-700 text-sm mt-2">{book.region} - {book.maxCode} codes</p>
+                <p className="text-parchment-300 text-xs italic">{book.title}</p>
+                <p className="text-parchment-200 text-sm mt-2">{book.region} - {book.maxCode} codes</p>
               </div>
             </Link>
           ))}

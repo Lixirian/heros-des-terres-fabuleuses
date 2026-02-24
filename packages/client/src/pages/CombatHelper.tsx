@@ -120,17 +120,17 @@ export default function CombatHelper() {
         <div className="parchment-card">
           <h3 className="section-title">Choisir un personnage</h3>
           {characters.length === 0 ? (
-            <p className="text-parchment-600">Aucun personnage. Créez-en un d'abord.</p>
+            <p className="text-parchment-300">Aucun personnage. Créez-en un d'abord.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {characters.map((c: any) => (
                 <button
                   key={c.id}
                   onClick={() => selectChar(c)}
-                  className="p-3 rounded-lg border-2 border-parchment-300 hover:border-fantasy-gold transition-all text-left"
+                  className="p-3 rounded-lg border-2 border-parchment-600 hover:border-fantasy-gold transition-all text-left"
                 >
-                  <p className="font-medieval text-fantasy-brown">{c.name}</p>
-                  <p className="text-xs text-parchment-600">{c.profession} - Rang {c.rank} - END: {c.stamina}/{c.max_stamina}</p>
+                  <p className="font-medieval text-fantasy-gold">{c.name}</p>
+                  <p className="text-xs text-parchment-300">{c.profession} - Rang {c.rank} - END: {c.stamina}/{c.max_stamina}</p>
                 </button>
               ))}
             </div>
@@ -147,8 +147,8 @@ export default function CombatHelper() {
                 {selectedChar.name[0]}
               </div>
               <div>
-                <p className="font-medieval text-xl text-fantasy-brown">{selectedChar.name}</p>
-                <p className="text-sm text-parchment-600">
+                <p className="font-medieval text-xl text-fantasy-gold">{selectedChar.name}</p>
+                <p className="text-sm text-parchment-300">
                   COM: {selectedChar.combat} | DEF: {selectedChar.defence} | END: {selectedChar.stamina}/{selectedChar.max_stamina}
                 </p>
               </div>
@@ -176,25 +176,33 @@ export default function CombatHelper() {
                   <h3 className="section-title">Configurer l'ennemi</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm text-parchment-700 mb-1 font-semibold">Nom de l'ennemi</label>
+                      <label className="block text-sm text-parchment-200 mb-1 font-semibold">Nom de l'ennemi</label>
                       <input value={enemyName} onChange={e => setEnemyName(e.target.value)} className="fantasy-input" placeholder="Ex: Gobelin" />
                     </div>
                     <div>
-                      <label className="block text-sm text-parchment-700 mb-1 font-semibold">COMBAT</label>
+                      <label className="block text-sm text-parchment-200 mb-1 font-semibold">COMBAT</label>
                       <input type="number" value={enemyCombat} onChange={e => setEnemyCombat(Number(e.target.value))} className="fantasy-input" min={1} />
                     </div>
                     <div>
-                      <label className="block text-sm text-parchment-700 mb-1 font-semibold">Défense</label>
+                      <label className="block text-sm text-parchment-200 mb-1 font-semibold">Défense</label>
                       <input type="number" value={enemyDefence} onChange={e => setEnemyDefence(Number(e.target.value))} className="fantasy-input" min={1} />
                     </div>
                     <div>
-                      <label className="block text-sm text-parchment-700 mb-1 font-semibold">Endurance</label>
+                      <label className="block text-sm text-parchment-200 mb-1 font-semibold">Endurance</label>
                       <input type="number" value={enemyStamina} onChange={e => setEnemyStamina(Number(e.target.value))} className="fantasy-input" min={1} />
                     </div>
                   </div>
-                  <button onClick={startCombat} disabled={!enemyName} className="fantasy-button w-full text-center">
-                    Commencer le combat !
-                  </button>
+                  <div className="flex gap-3">
+                    <button onClick={startCombat} disabled={!enemyName} className="fantasy-button flex-1 text-center">
+                      Commencer le combat !
+                    </button>
+                    <button
+                      onClick={() => { setSelectedChar(null); setEnemyName(''); setEnemyCombat(5); setEnemyDefence(5); setEnemyStamina(10); resetCombat(); }}
+                      className="fantasy-button-danger text-center px-6"
+                    >
+                      Annuler
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -202,18 +210,18 @@ export default function CombatHelper() {
                   <div className="parchment-card">
                     <div className="flex justify-between items-center mb-4">
                       <div className="text-center">
-                        <p className="font-medieval text-lg text-fantasy-brown">{selectedChar.name}</p>
+                        <p className="font-medieval text-lg text-fantasy-gold">{selectedChar.name}</p>
                         <p className="text-2xl font-bold text-fantasy-gold">{combatState.playerStamina}</p>
-                        <p className="text-xs text-parchment-600">Endurance</p>
+                        <p className="text-xs text-parchment-300">Endurance</p>
                       </div>
                       <div className="text-center">
                         <p className="font-medieval text-2xl text-fantasy-red">VS</p>
-                        <p className="text-sm text-parchment-600">Round {combatState.rounds.length + (combatState.finished ? 0 : 1)}</p>
+                        <p className="text-sm text-parchment-300">Round {combatState.rounds.length + (combatState.finished ? 0 : 1)}</p>
                       </div>
                       <div className="text-center">
-                        <p className="font-medieval text-lg text-fantasy-brown">{enemyName}</p>
+                        <p className="font-medieval text-lg text-fantasy-gold">{enemyName}</p>
                         <p className="text-2xl font-bold text-fantasy-red">{combatState.enemyStamina}</p>
-                        <p className="text-xs text-parchment-600">Endurance</p>
+                        <p className="text-xs text-parchment-300">Endurance</p>
                       </div>
                     </div>
 
@@ -226,15 +234,20 @@ export default function CombatHelper() {
                     {/* Action Buttons */}
                     {combatState.finished ? (
                       <div className="text-center space-y-3">
-                        <p className={`font-medieval text-2xl ${combatState.winner === 'player' ? 'text-green-700' : 'text-fantasy-red'}`}>
+                        <p className={`font-medieval text-2xl ${combatState.winner === 'player' ? 'text-green-400' : 'text-fantasy-red'}`}>
                           {combatState.winner === 'player' ? 'Victoire !' : 'Défaite...'}
                         </p>
                         <button onClick={resetCombat} className="fantasy-button">Nouveau combat</button>
                       </div>
                     ) : (
-                      <button onClick={nextRound} disabled={rolling} className="fantasy-button w-full text-center text-lg">
-                        {rolling ? 'Lancer des dés...' : 'Lancer le round !'}
-                      </button>
+                      <div className="space-y-2">
+                        <button onClick={nextRound} disabled={rolling} className="fantasy-button w-full text-center text-lg">
+                          {rolling ? 'Lancer des dés...' : 'Lancer le round !'}
+                        </button>
+                        <button onClick={resetCombat} className="fantasy-button-danger w-full text-center text-sm">
+                          Abandonner le combat
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -244,12 +257,12 @@ export default function CombatHelper() {
                       <h3 className="section-title">Historique des rounds</h3>
                       <div className="space-y-2 max-h-60 overflow-y-auto">
                         {[...combatState.rounds].reverse().map(round => (
-                          <div key={round.round} className="p-3 bg-parchment-50 rounded border border-parchment-300 text-sm">
-                            <p className="font-semibold text-parchment-800">Round {round.round}</p>
-                            <p className="text-parchment-700">
+                          <div key={round.round} className="p-3 bg-parchment-800/50 rounded border border-parchment-600 text-sm">
+                            <p className="font-semibold text-parchment-100">Round {round.round}</p>
+                            <p className="text-parchment-200">
                               {selectedChar.name}: [{round.playerRoll.join(', ')}] + {selectedChar.combat} = {round.playerTotal} → {round.playerDamage} dégâts
                             </p>
-                            <p className="text-parchment-700">
+                            <p className="text-parchment-200">
                               {enemyName}: [{round.enemyRoll.join(', ')}] + {enemyCombat} = {round.enemyTotal} → {round.enemyDamage} dégâts
                             </p>
                             <p className="text-xs text-parchment-500">
@@ -269,7 +282,7 @@ export default function CombatHelper() {
               <h3 className="section-title">Test de compétence</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm text-parchment-700 mb-1 font-semibold">Compétence</label>
+                  <label className="block text-sm text-parchment-200 mb-1 font-semibold">Compétence</label>
                   <select value={testSkill} onChange={e => setTestSkill(e.target.value)} className="fantasy-input">
                     {Object.entries(statLabels).map(([key, label]) => (
                       <option key={key} value={key}>{label} ({selectedChar[key]})</option>
@@ -277,11 +290,11 @@ export default function CombatHelper() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-parchment-700 mb-1 font-semibold">Difficulté</label>
+                  <label className="block text-sm text-parchment-200 mb-1 font-semibold">Difficulté</label>
                   <input type="number" value={testDifficulty} onChange={e => setTestDifficulty(Number(e.target.value))} className="fantasy-input" min={2} />
                 </div>
                 <div>
-                  <label className="block text-sm text-parchment-700 mb-1 font-semibold">Bonus</label>
+                  <label className="block text-sm text-parchment-200 mb-1 font-semibold">Bonus</label>
                   <input type="number" value={testBonus} onChange={e => setTestBonus(Number(e.target.value))} className="fantasy-input" />
                 </div>
               </div>
@@ -296,12 +309,12 @@ export default function CombatHelper() {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
-                    className={`p-4 rounded-lg border-2 text-center ${testResult.success ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}
+                    className={`p-4 rounded-lg border-2 text-center ${testResult.success ? 'border-green-600 bg-green-900/30' : 'border-red-600 bg-red-900/30'}`}
                   >
                     <p className="font-medieval text-2xl mb-2">
                       {testResult.success ? 'Réussite !' : 'Échec !'}
                     </p>
-                    <p className="text-parchment-700">
+                    <p className="text-parchment-200">
                       [{testResult.dice.join(', ')}] ({testResult.diceTotal}) + {testResult.skillValue}
                       {testResult.bonus > 0 && ` + ${testResult.bonus}`} = <span className="font-bold">{testResult.total}</span>
                       {' '}vs difficulté {testResult.difficulty}

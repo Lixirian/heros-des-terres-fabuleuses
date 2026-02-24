@@ -3,10 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { books } from '../data/books';
 
 const mapImages: Record<number, string> = {
-  1: '/assets/maps/web-book1-sokara.jpg',
-  2: '/assets/maps/web-book2-golnir.jpg',
-  3: '/assets/maps/web-book3-blood-dark-sea.jpg',
-  4: '/assets/maps/web-book4-great-steppes.jpg',
+  1: '/assets/maps/color-fr-book1-sokara.jpg',
+  2: '/assets/maps/color-fr-book2-golnir.jpg',
+  3: '/assets/maps/color-fr-book3-ocean-violet.jpg',
+  4: '/assets/maps/color-fr-book4-steppes.jpg',
   5: '/assets/maps/web-book5-uttaku.jpg',
   6: '/assets/maps/web-book6-akatsurai.jpg',
 };

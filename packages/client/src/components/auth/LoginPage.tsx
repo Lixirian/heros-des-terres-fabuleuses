@@ -36,21 +36,21 @@ export default function LoginPage() {
           <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-fantasy-gold to-parchment-500 flex items-center justify-center text-parchment-900 font-medieval text-3xl shadow-lg mb-4">
             H
           </div>
-          <h1 className="font-medieval text-3xl text-fantasy-brown mb-2">
+          <h1 className="font-medieval text-3xl text-fantasy-gold mb-2">
             Héros des Terres Fabuleuses
           </h1>
-          <p className="text-parchment-600 font-body">Connectez-vous pour continuer l'aventure</p>
+          <p className="text-parchment-300 font-body">Connectez-vous pour continuer l'aventure</p>
         </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-sm">
+          <div className="bg-red-900/30 border border-red-600 text-red-300 px-4 py-2 rounded mb-4 text-sm">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-body text-parchment-700 mb-1">Pseudo ou email</label>
+            <label className="block text-sm font-body text-parchment-200 mb-1">Pseudo ou email</label>
             <input
               type="text"
               value={login}
@@ -60,7 +60,7 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-body text-parchment-700 mb-1">Mot de passe</label>
+            <label className="block text-sm font-body text-parchment-200 mb-1">Mot de passe</label>
             <input
               type="password"
               value={password}
@@ -74,7 +74,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center mt-6 text-parchment-600 text-sm">
+        <p className="text-center mt-6 text-parchment-300 text-sm">
           Pas encore de compte ?{' '}
           <Link to="/register" className="text-fantasy-gold hover:underline font-semibold">
             S'inscrire

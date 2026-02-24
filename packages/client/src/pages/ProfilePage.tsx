@@ -32,8 +32,8 @@ export default function ProfilePage() {
             {user.username[0].toUpperCase()}
           </div>
           <div>
-            <h3 className="font-medieval text-2xl text-fantasy-brown">{user.username}</h3>
-            <p className="text-parchment-600">{user.email}</p>
+            <h3 className="font-medieval text-2xl text-fantasy-gold">{user.username}</h3>
+            <p className="text-parchment-300">{user.email}</p>
             <p className="text-parchment-500 text-sm mt-1">{characters.length} personnage(s)</p>
           </div>
         </div>
@@ -43,15 +43,15 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="parchment-card text-center">
           <p className="font-medieval text-3xl text-fantasy-gold">{characters.length}</p>
-          <p className="text-parchment-600 text-sm">Personnages</p>
+          <p className="text-parchment-300 text-sm">Personnages</p>
         </div>
         <div className="parchment-card text-center">
           <p className="font-medieval text-3xl text-fantasy-gold">{customChars.length}</p>
-          <p className="text-parchment-600 text-sm">Personnalisés</p>
+          <p className="text-parchment-300 text-sm">Personnalisés</p>
         </div>
         <div className="parchment-card text-center">
           <p className="font-medieval text-3xl text-fantasy-gold">{pregenChars.length}</p>
-          <p className="text-parchment-600 text-sm">Prétirés</p>
+          <p className="text-parchment-300 text-sm">Prétirés</p>
         </div>
       </div>
 
@@ -62,7 +62,7 @@ export default function ProfilePage() {
           <p className="text-parchment-400">Chargement...</p>
         ) : characters.length === 0 ? (
           <div className="parchment-card text-center py-8">
-            <p className="text-parchment-600 mb-4">Aucun personnage encore.</p>
+            <p className="text-parchment-300 mb-4">Aucun personnage encore.</p>
             <Link to="/create" className="fantasy-button inline-block">Créer un personnage</Link>
           </div>
         ) : (
@@ -78,17 +78,17 @@ export default function ProfilePage() {
                     {char.name[0]}
                   </div>
                   <div>
-                    <p className="font-medieval text-lg text-fantasy-brown group-hover:text-fantasy-gold transition-colors">
+                    <p className="font-medieval text-lg text-fantasy-gold group-hover:text-fantasy-gold transition-colors">
                       {char.name}
                     </p>
-                    <p className="text-parchment-600 text-sm">
+                    <p className="text-parchment-300 text-sm">
                       {char.profession} - Rang {char.rank}
                       {char.is_pregen ? ' (prétirés)' : ''}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-parchment-600">END: {char.stamina}/{char.max_stamina}</p>
+                  <p className="text-sm text-parchment-300">END: {char.stamina}/{char.max_stamina}</p>
                   <p className="text-sm text-parchment-500">{char.money} chardes</p>
                 </div>
               </Link>
