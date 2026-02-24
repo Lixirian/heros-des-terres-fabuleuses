@@ -11,8 +11,24 @@ export function getDb(): Database.Database {
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
     initSchema(db);
+    migrate(db);
   }
   return db;
+}
+
+function migrate(db: Database.Database) {
+  // Ajout des colonnes pour résurrection, initiation et mort (v2)
+  const cols = db.prepare("PRAGMA table_info(characters)").all() as { name: string }[];
+  const colNames = cols.map(c => c.name);
+  if (!colNames.includes('is_initiate')) {
+    db.exec("ALTER TABLE characters ADD COLUMN is_initiate BOOLEAN DEFAULT 0");
+  }
+  if (!colNames.includes('resurrection_arrangement')) {
+    db.exec("ALTER TABLE characters ADD COLUMN resurrection_arrangement TEXT");
+  }
+  if (!colNames.includes('is_dead')) {
+    db.exec("ALTER TABLE characters ADD COLUMN is_dead BOOLEAN DEFAULT 0");
+  }
 }
 
 function initSchema(db: Database.Database) {
@@ -51,6 +67,9 @@ function initSchema(db: Database.Database) {
       pregen_id TEXT,
       portrait TEXT,
       backstory TEXT,
+      is_initiate BOOLEAN DEFAULT 0,
+      resurrection_arrangement TEXT,
+      is_dead BOOLEAN DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );

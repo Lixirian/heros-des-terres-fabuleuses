@@ -28,6 +28,8 @@ export interface Character {
   scouting: number;
   thievery: number;
   god?: string;
+  is_initiate?: boolean;
+  resurrection_arrangement?: string;
   blessings: string[];
   titles: string[];
   equipment: EquipmentItem[];
@@ -37,6 +39,7 @@ export interface Character {
   pregen_id?: string;
   portrait?: string;
   backstory?: string;
+  is_dead?: boolean;
 }
 
 export interface EquipmentItem {

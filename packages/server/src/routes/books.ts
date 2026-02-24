@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { getDb } from '../db/schema';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 
@@ -6,10 +6,11 @@ const router = Router();
 router.use(authMiddleware);
 
 // Get progress for a character's book
-router.get('/:characterId/:bookNumber', (req: AuthRequest, res: Response) => {
+router.get('/:characterId/:bookNumber', (req: Request, res: Response) => {
   const db = getDb();
+  const userId = (req as AuthRequest).userId!;
   // Verify ownership
-  const char = db.prepare('SELECT id FROM characters WHERE id = ? AND user_id = ?').get(req.params.characterId, req.userId!);
+  const char = db.prepare('SELECT id FROM characters WHERE id = ? AND user_id = ?').get(req.params.characterId, userId);
   if (!char) return res.status(404).json({ error: 'Personnage introuvable' });
 
   const progress = db.prepare(
@@ -20,9 +21,10 @@ router.get('/:characterId/:bookNumber', (req: AuthRequest, res: Response) => {
 });
 
 // Toggle code visited
-router.post('/:characterId/:bookNumber/:codeNumber', (req: AuthRequest, res: Response) => {
+router.post('/:characterId/:bookNumber/:codeNumber', (req: Request, res: Response) => {
   const db = getDb();
-  const char = db.prepare('SELECT id FROM characters WHERE id = ? AND user_id = ?').get(req.params.characterId, req.userId!);
+  const userId = (req as AuthRequest).userId!;
+  const char = db.prepare('SELECT id FROM characters WHERE id = ? AND user_id = ?').get(req.params.characterId, userId);
   if (!char) return res.status(404).json({ error: 'Personnage introuvable' });
 
   const { characterId, bookNumber, codeNumber } = req.params;
@@ -52,9 +54,10 @@ router.post('/:characterId/:bookNumber/:codeNumber', (req: AuthRequest, res: Res
 });
 
 // Save combat log
-router.post('/combat-log/:characterId', (req: AuthRequest, res: Response) => {
+router.post('/combat-log/:characterId', (req: Request, res: Response) => {
   const db = getDb();
-  const char = db.prepare('SELECT id FROM characters WHERE id = ? AND user_id = ?').get(req.params.characterId, req.userId!);
+  const userId = (req as AuthRequest).userId!;
+  const char = db.prepare('SELECT id FROM characters WHERE id = ? AND user_id = ?').get(req.params.characterId, userId);
   if (!char) return res.status(404).json({ error: 'Personnage introuvable' });
 
   const { enemy_name, enemy_defence, enemy_stamina, result, rounds } = req.body;
@@ -68,9 +71,10 @@ router.post('/combat-log/:characterId', (req: AuthRequest, res: Response) => {
 });
 
 // Get combat logs
-router.get('/combat-log/:characterId', (req: AuthRequest, res: Response) => {
+router.get('/combat-log/:characterId', (req: Request, res: Response) => {
   const db = getDb();
-  const char = db.prepare('SELECT id FROM characters WHERE id = ? AND user_id = ?').get(req.params.characterId, req.userId!);
+  const userId = (req as AuthRequest).userId!;
+  const char = db.prepare('SELECT id FROM characters WHERE id = ? AND user_id = ?').get(req.params.characterId, userId);
   if (!char) return res.status(404).json({ error: 'Personnage introuvable' });
 
   const logs = db.prepare(

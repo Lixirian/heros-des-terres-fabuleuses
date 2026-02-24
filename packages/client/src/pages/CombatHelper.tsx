@@ -30,6 +30,7 @@ export default function CombatHelper() {
   const [combatState, setCombatState] = useState<CombatState | null>(null);
   const [rolling, setRolling] = useState(false);
   const [lastDice, setLastDice] = useState<[number, number] | null>(null);
+  const [showDeathModal, setShowDeathModal] = useState(false);
 
   // Skill test state
   const [testSkill, setTestSkill] = useState('combat');
@@ -90,6 +91,10 @@ export default function CombatHelper() {
           result: newState.winner,
           rounds: newState.rounds,
         });
+        // Si le joueur est mort (endurance = 0), afficher le modal de mort
+        if (newState.winner === 'enemy' && newState.playerStamina <= 0) {
+          setShowDeathModal(true);
+        }
       }
     }, 800);
   }, [selectedChar, combatState, enemyName, enemyCombat, enemyDefence, enemyStamina]);
@@ -122,6 +127,10 @@ export default function CombatHelper() {
           result: newState.winner,
           rounds: newState.rounds,
         });
+        // Si le joueur meurt en fuyant (attaque gratuite fatale)
+        if (newState.playerStamina <= 0) {
+          setShowDeathModal(true);
+        }
       }
     }, 800);
   }, [selectedChar, combatState, enemyName, enemyCombat, enemyDefence, enemyStamina]);
@@ -142,6 +151,45 @@ export default function CombatHelper() {
     setEnemyCombat(5);
     setEnemyDefence(5);
     setEnemyStamina(10);
+    setSelectedChar(null);
+  };
+
+  /** Résurrection : le personnage revient avec pénalités selon les règles officielles */
+  const handleResurrection = async () => {
+    if (!selectedChar?.id) return;
+    // Pénalités de résurrection selon les règles Fabled Lands :
+    // - Perte de tout l'argent
+    // - Perte de tout l'équipement
+    // - Endurance restaurée au maximum
+    // - L'arrangement de résurrection est consommé
+    await api.updateCharacter(selectedChar.id, {
+      stamina: selectedChar.max_stamina,
+      money: 0,
+      equipment: [],
+      resurrection_arrangement: null,
+      is_dead: false,
+    });
+    setSelectedChar({
+      ...selectedChar,
+      stamina: selectedChar.max_stamina,
+      money: 0,
+      equipment: [],
+      resurrection_arrangement: null,
+      is_dead: false,
+    });
+    setShowDeathModal(false);
+    setCombatState(null);
+    setLastDice(null);
+  };
+
+  /** Mort définitive : marquer le personnage comme mort */
+  const handlePermanentDeath = async () => {
+    if (!selectedChar?.id) return;
+    await api.updateCharacter(selectedChar.id, { is_dead: true, stamina: 0 });
+    setSelectedChar({ ...selectedChar, is_dead: true, stamina: 0 });
+    setShowDeathModal(false);
+    setCombatState(null);
+    setLastDice(null);
     setSelectedChar(null);
   };
 
@@ -432,6 +480,82 @@ export default function CombatHelper() {
           )}
         </>
       )}
+      {/* Modal de mort */}
+      <AnimatePresence>
+        {showDeathModal && selectedChar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="bg-parchment-900 border-2 border-fantasy-red rounded-lg p-6 max-w-md w-full text-center space-y-4"
+            >
+              <div className="text-6xl">💀</div>
+              <h3 className="font-medieval text-2xl text-fantasy-red">{selectedChar.name} est mort(e) !</h3>
+              <p className="text-parchment-300">
+                L'endurance de votre personnage est tombée à 0.
+              </p>
+
+              {selectedChar.resurrection_arrangement ? (
+                <div className="space-y-3">
+                  <div className="bg-green-900/30 border border-green-600 rounded-lg p-3">
+                    <p className="text-green-400 font-semibold">Arrangement de résurrection actif</p>
+                    <p className="text-parchment-300 text-sm mt-1">{selectedChar.resurrection_arrangement}</p>
+                  </div>
+                  <p className="text-parchment-400 text-sm">
+                    Selon les règles officielles, la résurrection entraîne :
+                  </p>
+                  <ul className="text-parchment-300 text-sm text-left list-disc pl-5 space-y-1">
+                    <li>Perte de <strong className="text-fantasy-red">tout votre argent</strong> ({selectedChar.money} chardes)</li>
+                    <li>Perte de <strong className="text-fantasy-red">tout votre équipement</strong> ({selectedChar.equipment?.length || 0} objets)</li>
+                    <li>Endurance restaurée à <strong className="text-green-400">{selectedChar.max_stamina}</strong></li>
+                    <li>L'arrangement de résurrection est <strong className="text-yellow-400">consommé</strong></li>
+                  </ul>
+                  <div className="flex gap-2">
+                    <button onClick={handleResurrection} className="flex-1 px-4 py-2 rounded font-medieval bg-green-800 text-green-100 border border-green-600 hover:bg-green-700 transition-all">
+                      Ressusciter
+                    </button>
+                    <button onClick={handlePermanentDeath} className="flex-1 fantasy-button-danger text-center">
+                      Refuser (mort définitive)
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="bg-red-900/30 border border-red-600 rounded-lg p-3">
+                    <p className="text-fantasy-red font-semibold">Aucun arrangement de résurrection</p>
+                    <p className="text-parchment-400 text-sm mt-1">
+                      Votre personnage n'a pas conclu d'arrangement dans un temple.
+                      Vous pouvez en obtenir un en visitant un temple avant votre prochain combat.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        // Permettre de simuler une résurrection gracieuse (le joueur décide)
+                        setShowDeathModal(false);
+                        setCombatState(null);
+                        setLastDice(null);
+                      }}
+                      className="flex-1 px-4 py-2 rounded font-medieval bg-parchment-700 text-parchment-200 border border-parchment-500 hover:bg-parchment-600 transition-all text-sm"
+                    >
+                      Continuer (ignorer la mort)
+                    </button>
+                    <button onClick={handlePermanentDeath} className="flex-1 fantasy-button-danger text-center text-sm">
+                      Mort définitive
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

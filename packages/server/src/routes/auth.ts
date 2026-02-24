@@ -47,9 +47,10 @@ router.post('/login', (req: Request, res: Response) => {
   res.json({ token, user: { id: user.id, username: user.username, email: user.email } });
 });
 
-router.get('/me', authMiddleware, (req: AuthRequest, res: Response) => {
+router.get('/me', authMiddleware, (req: Request, res: Response) => {
   const db = getDb();
-  const user = db.prepare('SELECT id, username, email, created_at FROM users WHERE id = ?').get(req.userId!) as any;
+  const userId = (req as AuthRequest).userId!;
+  const user = db.prepare('SELECT id, username, email, created_at FROM users WHERE id = ?').get(userId) as any;
   if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
   res.json(user);
 });

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../utils/api';
 import { Character, EquipmentItem } from '../data/types';
 import { books } from '../data/books';
+import { gods } from '../data/equipment';
+import { statsTable, RankRange } from '../data/professions';
 
 const statLabels: Record<string, string> = {
   combat: 'COMBAT',
@@ -23,6 +25,8 @@ export default function CharacterSheet() {
   const [saving, setSaving] = useState(false);
   const [combatLogs, setCombatLogs] = useState<any[]>([]);
   const [bookProgress, setBookProgress] = useState<Record<number, number>>({});
+  const [showRankModal, setShowRankModal] = useState(false);
+  const [pendingRank, setPendingRank] = useState<number | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -35,6 +39,8 @@ export default function CharacterSheet() {
             titles: typeof c.titles === 'string' ? JSON.parse(c.titles) : c.titles || [],
             equipment: typeof c.equipment === 'string' ? JSON.parse(c.equipment) : c.equipment || [],
             codewords: typeof c.codewords === 'string' ? JSON.parse(c.codewords) : c.codewords || [],
+            is_initiate: !!c.is_initiate,
+            is_dead: !!c.is_dead,
           };
           setChar(parsed);
           setEditData(parsed);
@@ -100,8 +106,16 @@ export default function CharacterSheet() {
               ) : (
                 <h2 className="font-medieval text-3xl text-fantasy-gold">{char.name}</h2>
               )}
-              <p className="text-parchment-300">{char.profession} - Rang {char.rank}</p>
-              {char.god && <p className="text-parchment-500 text-sm italic">Divinité : {char.god}</p>}
+              <p className="text-parchment-300">
+                {char.profession} - Rang {char.rank}
+                {char.is_dead && <span className="text-fantasy-red ml-2 font-bold">(MORT)</span>}
+              </p>
+              {char.god && char.god !== 'Aucun' && (
+                <p className="text-parchment-500 text-sm italic">
+                  Divinité : {char.god}
+                  {char.is_initiate && <span className="text-yellow-400"> (initié)</span>}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex gap-2">
@@ -193,7 +207,21 @@ export default function CharacterSheet() {
             <div className="flex justify-between">
               <span className="font-body text-parchment-200 font-semibold">Rang</span>
               {editing ? (
-                <input type="number" value={editData.rank} onChange={e => setEditData({ ...editData, rank: Number(e.target.value) })} className="fantasy-input w-16 text-center text-sm" min={1} max={10} />
+                <input
+                  type="number"
+                  value={editData.rank}
+                  onChange={e => {
+                    const newRank = Number(e.target.value);
+                    setEditData({ ...editData, rank: newRank });
+                    if (newRank !== char.rank && newRank >= 1 && newRank <= 10) {
+                      setPendingRank(newRank);
+                      setShowRankModal(true);
+                    }
+                  }}
+                  className="fantasy-input w-16 text-center text-sm"
+                  min={1}
+                  max={10}
+                />
               ) : (
                 <span className="font-medieval text-xl text-fantasy-gold">{char.rank}</span>
               )}
@@ -223,6 +251,117 @@ export default function CharacterSheet() {
           </div>
         </div>
       </div>
+
+      {/* Actions : Guérison, Temple, Résurrection */}
+      {!editing && (
+        <div className="parchment-card">
+          <h3 className="section-title">Actions</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Repos */}
+            <button
+              onClick={async () => {
+                if (char.stamina >= char.max_stamina) return;
+                const newStamina = Math.min(char.max_stamina, char.stamina + 1);
+                await api.updateCharacter(Number(id), { stamina: newStamina });
+                setChar({ ...char, stamina: newStamina });
+              }}
+              disabled={char.stamina >= char.max_stamina || char.is_dead}
+              className="p-3 rounded-lg border border-parchment-600 hover:border-green-600 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <p className="font-medieval text-green-400">Repos</p>
+              <p className="text-xs text-parchment-400">Récupère +1 Endurance</p>
+              <p className="text-xs text-parchment-500 mt-1">Gratuit (entre les combats)</p>
+            </button>
+
+            {/* Guérison au temple */}
+            <button
+              onClick={async () => {
+                if (char.stamina >= char.max_stamina || char.money < 10) return;
+                const healAmount = Math.min(char.max_stamina - char.stamina, Math.floor(char.money / 10));
+                const cost = healAmount * 10;
+                const newStamina = char.stamina + healAmount;
+                const newMoney = char.money - cost;
+                await api.updateCharacter(Number(id), { stamina: newStamina, money: newMoney });
+                setChar({ ...char, stamina: newStamina, money: newMoney });
+              }}
+              disabled={char.stamina >= char.max_stamina || char.money < 10 || char.is_dead}
+              className="p-3 rounded-lg border border-parchment-600 hover:border-blue-600 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <p className="font-medieval text-blue-400">Temple - Guérison</p>
+              <p className="text-xs text-parchment-400">Restaure toute l'Endurance</p>
+              <p className="text-xs text-parchment-500 mt-1">Coût : 10 chardes/point</p>
+            </button>
+
+            {/* Arrangement de résurrection */}
+            <button
+              onClick={async () => {
+                if (char.resurrection_arrangement || char.money < 200) return;
+                const templeName = char.god ? `Temple de ${char.god}` : 'Temple local';
+                const cost = char.is_initiate ? 200 : 500;
+                if (char.money < cost) return;
+                await api.updateCharacter(Number(id), {
+                  resurrection_arrangement: templeName,
+                  money: char.money - cost,
+                });
+                setChar({ ...char, resurrection_arrangement: templeName, money: char.money - cost });
+              }}
+              disabled={!!char.resurrection_arrangement || char.money < (char.is_initiate ? 200 : 500) || char.is_dead}
+              className="p-3 rounded-lg border border-parchment-600 hover:border-purple-600 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <p className="font-medieval text-purple-400">Arrangement de résurrection</p>
+              <p className="text-xs text-parchment-400">
+                {char.resurrection_arrangement
+                  ? `Actif : ${char.resurrection_arrangement}`
+                  : 'Conclure un arrangement au temple'}
+              </p>
+              <p className="text-xs text-parchment-500 mt-1">
+                Coût : {char.is_initiate ? '200' : '500'} chardes
+                {!char.is_initiate && ' (200 si initié)'}
+              </p>
+            </button>
+
+            {/* Initiation divine */}
+            <button
+              onClick={async () => {
+                if (char.is_initiate || !char.god || char.god === 'Aucun' || char.money < 100) return;
+                await api.updateCharacter(Number(id), { is_initiate: true, money: char.money - 100 });
+                setChar({ ...char, is_initiate: true, money: char.money - 100 });
+              }}
+              disabled={char.is_initiate || !char.god || char.god === 'Aucun' || char.money < 100 || char.is_dead}
+              className="p-3 rounded-lg border border-parchment-600 hover:border-yellow-600 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <p className="font-medieval text-yellow-400">Initiation divine</p>
+              <p className="text-xs text-parchment-400">
+                {char.is_initiate
+                  ? `Initié de ${char.god}`
+                  : char.god && char.god !== 'Aucun'
+                    ? `Devenir initié de ${char.god}`
+                    : 'Choisissez d\'abord une divinité'}
+              </p>
+              <p className="text-xs text-parchment-500 mt-1">Coût : 100 chardes</p>
+            </button>
+          </div>
+
+          {/* Indicateurs d'état */}
+          <div className="flex flex-wrap gap-2 mt-3">
+            {char.resurrection_arrangement && (
+              <span className="px-2 py-1 bg-purple-900/50 rounded text-xs text-purple-300 border border-purple-700">
+                Résurrection : {char.resurrection_arrangement}
+              </span>
+            )}
+            {char.is_initiate && char.god && (
+              <span className="px-2 py-1 bg-yellow-900/50 rounded text-xs text-yellow-300 border border-yellow-700">
+                Initié de {char.god}
+              </span>
+            )}
+            {char.is_dead && (
+              <span className="px-2 py-1 bg-red-900/50 rounded text-xs text-red-300 border border-red-700">
+                MORT
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Codewords, Titles, Blessings */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -381,6 +520,126 @@ export default function CharacterSheet() {
           </div>
         )}
       </div>
+      {/* Modal de progression de rang */}
+      <AnimatePresence>
+        {showRankModal && pendingRank && char && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-parchment-900 border-2 border-fantasy-gold rounded-lg p-6 max-w-lg w-full space-y-4"
+            >
+              <h3 className="font-medieval text-xl text-fantasy-gold text-center">
+                Progression au Rang {pendingRank}
+              </h3>
+              <p className="text-parchment-300 text-sm text-center">
+                Voulez-vous recalculer les compétences selon les tables officielles pour un {char.profession} de Rang {pendingRank} ?
+              </p>
+
+              {(() => {
+                const getRankRange = (r: number): RankRange => {
+                  if (r <= 2) return '1-2';
+                  if (r <= 4) return '3-4';
+                  if (r <= 6) return '5-6';
+                  if (r <= 8) return '7-8';
+                  return '9-10';
+                };
+                const profession = char.profession as keyof typeof statsTable;
+                const table = statsTable[profession];
+                if (!table) return <p className="text-parchment-400">Profession inconnue</p>;
+                const newStats = table[getRankRange(pendingRank)];
+                const oldStats = table[getRankRange(char.rank)];
+
+                const statKeys = [
+                  { key: 'combat', label: 'COMBAT' },
+                  { key: 'charisma', label: 'CHARISME' },
+                  { key: 'magic', label: 'MAGIE' },
+                  { key: 'sanctity', label: 'PIÉTÉ' },
+                  { key: 'scouting', label: 'EXPLORATION' },
+                  { key: 'thievery', label: 'ADRESSE' },
+                  { key: 'defence', label: 'DÉFENSE' },
+                  { key: 'stamina', label: 'ENDURANCE' },
+                ];
+
+                return (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-3 gap-1 text-sm font-semibold text-parchment-400 px-2">
+                      <span>Compétence</span>
+                      <span className="text-center">Actuel</span>
+                      <span className="text-center">Nouveau</span>
+                    </div>
+                    {statKeys.map(({ key, label }) => {
+                      const oldVal = oldStats[key as keyof typeof oldStats];
+                      const newVal = newStats[key as keyof typeof newStats];
+                      const diff = newVal - oldVal;
+                      return (
+                        <div key={key} className="grid grid-cols-3 gap-1 text-sm px-2 py-1 bg-parchment-800/30 rounded">
+                          <span className="text-parchment-200">{label}</span>
+                          <span className="text-center text-parchment-400">{oldVal}</span>
+                          <span className={`text-center font-bold ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-fantasy-red' : 'text-parchment-400'}`}>
+                            {newVal} {diff > 0 && `(+${diff})`}{diff < 0 && `(${diff})`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    const getRankRange = (r: number): RankRange => {
+                      if (r <= 2) return '1-2';
+                      if (r <= 4) return '3-4';
+                      if (r <= 6) return '5-6';
+                      if (r <= 8) return '7-8';
+                      return '9-10';
+                    };
+                    const profession = char.profession as keyof typeof statsTable;
+                    const newStats = statsTable[profession]?.[getRankRange(pendingRank)];
+                    if (newStats) {
+                      setEditData({
+                        ...editData,
+                        rank: pendingRank,
+                        combat: newStats.combat,
+                        charisma: newStats.charisma,
+                        magic: newStats.magic,
+                        sanctity: newStats.sanctity,
+                        scouting: newStats.scouting,
+                        thievery: newStats.thievery,
+                        defence: newStats.defence,
+                        stamina: newStats.stamina,
+                        max_stamina: newStats.stamina,
+                      });
+                    }
+                    setShowRankModal(false);
+                    setPendingRank(null);
+                  }}
+                  className="flex-1 fantasy-button text-center"
+                >
+                  Appliquer les stats officielles
+                </button>
+                <button
+                  onClick={() => {
+                    setShowRankModal(false);
+                    setPendingRank(null);
+                  }}
+                  className="flex-1 px-4 py-2 rounded font-medieval bg-parchment-700 text-parchment-200 border border-parchment-500 hover:bg-parchment-600 transition-all text-center text-sm"
+                >
+                  Garder les stats actuelles
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

@@ -28,22 +28,46 @@ Exemple : Test de COMBAT difficulté 9 avec COMBAT de 5
     title: 'Le Combat',
     content: `Le combat se déroule en rounds successifs :
 
-1. **Attaque du héros** : Lancez 2d6 + votre COMBAT + bonus d'arme
+1. **Attaque du héros** : Lancez 2d6 + votre COMBAT + bonus d'arme + bonus de bénédiction
 2. **Attaque de l'ennemi** : Lancez 2d6 + COMBAT de l'ennemi
 3. **Calcul des dégâts** :
    - Si votre attaque > Défense de l'ennemi : l'ennemi perd (attaque - défense) en Endurance
    - Si l'attaque ennemie > votre Défense : vous perdez (attaque - défense) en Endurance
 4. Répétez jusqu'à ce que l'Endurance d'un combattant tombe à 0
 
-**Fuite** : Vous pouvez fuir à la fin d'un round (selon le livre).`,
+**Bénédictions** : Certaines bénédictions donnent +1 au combat ou à la défense. D'autres permettent une relance des dés.
+
+**Fuite** : Vous pouvez fuir à n'importe quel moment du combat. L'ennemi porte alors une dernière attaque gratuite (vous ne ripostez pas). Le combat se termine ensuite avec le résultat "Fuite".
+
+**Annulation** : Vous pouvez annuler un combat à tout moment pour ne pas en tenir compte (aucune trace sauvegardée, endurance restaurée).`,
   },
   {
     title: 'Endurance et Défense',
     content: `**Endurance** représente vos points de vie. Quand elle tombe à 0, vous êtes vaincu.
-Elle peut être restaurée par des potions, du repos ou des bénédictions.
+
+**Guérison** :
+- **Repos** : Entre les combats, vous récupérez +1 point d'Endurance (gratuit)
+- **Temple** : Payez 10 chardes par point d'Endurance pour une guérison complète
+- **Potions** : Certains objets peuvent restaurer de l'Endurance
 
 **Défense** représente votre protection (armure, bouclier, agilité).
 Plus elle est élevée, moins vous subissez de dégâts en combat.`,
+  },
+  {
+    title: 'Mort et Résurrection',
+    content: `Quand votre **Endurance** tombe à **0**, votre personnage meurt.
+
+**Arrangement de résurrection** : Vous pouvez conclure un arrangement dans un temple AVANT de mourir. Si vous mourez avec un arrangement actif, vous revenez à la vie avec les pénalités suivantes :
+- Perte de **tout votre argent**
+- Perte de **tout votre équipement**
+- Endurance restaurée à son **maximum**
+- L'arrangement est **consommé** (il faut en racheter un)
+
+**Coût de l'arrangement** :
+- **500 chardes** pour les non-initiés
+- **200 chardes** pour les initiés d'une divinité
+
+**Sans arrangement** : Si vous n'avez pas d'arrangement de résurrection, votre personnage est mort définitivement. Vous pouvez toujours choisir d'ignorer la mort (pour jouer de manière détendue).`,
   },
   {
     title: 'Équipement',
@@ -60,12 +84,14 @@ L'argent est compté en **chardes** (la monnaie des Terres Fabuleuses).`,
     title: 'Rang et Progression',
     content: `Votre **Rang** (de 1 à 10) représente votre niveau d'expérience.
 
-En progressant en rang, vos compétences et stats augmentent selon les tables officielles de votre profession.
+En progressant en rang, vos compétences et stats augmentent selon les tables officielles de votre profession. L'application propose automatiquement de recalculer vos stats quand vous changez de rang.
 
-Le rang est gagné en accomplissant des quêtes et en atteignant certains codes.`,
+Le rang est gagné en accomplissant des quêtes et en atteignant certains codes.
+
+**Tables de rang** : Chaque profession a des paliers de stats (1-2, 3-4, 5-6, 7-8, 9-10). En passant d'un palier à l'autre, toutes vos compétences de base sont mises à jour.`,
   },
   {
-    title: 'Les Divinités',
+    title: 'Les Divinités et l\'Initiation',
     content: `Vous pouvez choisir de vénérer une divinité. Les temples vous offrent des bénédictions en échange de dons.
 
 **Elnir** - Protection et justice
@@ -76,7 +102,9 @@ Le rang est gagné en accomplissant des quêtes et en atteignant certains codes.
 **Tyrnai** - Commerce et voyage
 **Nagil** - Ténèbres et secrets
 **Maka** - Terre et nature
-**Les Trois Fortunes** - Chance et destin`,
+**Les Trois Fortunes** - Chance et destin
+
+**Initiation** : En payant **100 chardes** dans un temple de votre dieu, vous devenez **initié**. Les initiés bénéficient de tarifs réduits pour les arrangements de résurrection (200 au lieu de 500 chardes) et peuvent recevoir des bénédictions supplémentaires.`,
   },
   {
     title: 'Les Coche-mots',
