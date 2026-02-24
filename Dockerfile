@@ -9,11 +9,8 @@ RUN cd packages/server && npm install --omit=dev
 # Copy pre-built server
 COPY packages/server/dist ./packages/server/dist
 
-# Copy pre-built frontend
+# Copy pre-built frontend + static assets (merged locally before deploy)
 COPY packages/client/dist ./packages/client/dist
-
-# Copy static assets (portraits, maps, etc.)
-COPY packages/client/public ./packages/client/dist
 
 # Copy root package.json
 COPY package.json ./

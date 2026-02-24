@@ -27,6 +27,7 @@ export default function CharacterSheet() {
   const [bookProgress, setBookProgress] = useState<Record<number, number>>({});
   const [showRankModal, setShowRankModal] = useState(false);
   const [pendingRank, setPendingRank] = useState<number | null>(null);
+  const [showPortraitPicker, setShowPortraitPicker] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -105,7 +106,58 @@ export default function CharacterSheet() {
       <div className="parchment-card">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            {char.portrait ? (
+            {editing ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowPortraitPicker(!showPortraitPicker)}
+                  className="relative group"
+                >
+                  {editData.portrait ? (
+                    <img src={editData.portrait} alt={editData.name}
+                      className="w-20 h-20 rounded-full object-cover shadow-lg border-2 border-fantasy-gold/50" />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-fantasy-gold to-parchment-400 flex items-center justify-center text-parchment-900 font-medieval text-3xl shadow-lg">
+                      {editData.name?.[0] || '?'}
+                    </div>
+                  )}
+                  <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-white text-xs font-body">Changer</span>
+                  </div>
+                </button>
+                {showPortraitPicker && (
+                  <div className="absolute top-full left-0 mt-2 p-3 bg-parchment-900 border-2 border-fantasy-gold/50 rounded-lg shadow-xl z-50 w-72">
+                    <p className="text-parchment-300 text-xs mb-2 font-body">Choisir un portrait :</p>
+                    <div className="grid grid-cols-6 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setEditData({ ...editData, portrait: null }); setShowPortraitPicker(false); }}
+                        className={`w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center ${
+                          !editData.portrait ? 'border-fantasy-gold bg-fantasy-gold/10' : 'border-parchment-600 hover:border-parchment-500'
+                        }`}
+                      >
+                        <span className="text-parchment-400 text-[9px] font-body">Aucun</span>
+                      </button>
+                      {Array.from({ length: 10 }, (_, i) => {
+                        const src = `/assets/characters/gallery/gallery-${String(i + 1).padStart(2, '0')}.svg`;
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => { setEditData({ ...editData, portrait: src }); setShowPortraitPicker(false); }}
+                            className={`w-10 h-10 rounded-full border-2 transition-all overflow-hidden ${
+                              editData.portrait === src ? 'border-fantasy-gold scale-110' : 'border-parchment-600 hover:border-parchment-500'
+                            }`}
+                          >
+                            <img src={src} alt={`Portrait ${i + 1}`} className="w-full h-full object-cover" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : char.portrait ? (
               <img src={char.portrait} alt={char.name}
                 className="w-20 h-20 rounded-full object-cover shadow-lg border-2 border-fantasy-gold/50 animate-breathe" />
             ) : (
