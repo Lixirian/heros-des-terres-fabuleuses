@@ -63,10 +63,22 @@ export default function CharacterSheet() {
 
   const handleSave = async () => {
     if (!id) return;
+    // Validations avant sauvegarde
+    const validated = { ...editData };
+    validated.money = Math.max(0, validated.money ?? 0);
+    validated.stamina = Math.max(0, Math.min(validated.stamina ?? 0, validated.max_stamina ?? 99));
+    validated.max_stamina = Math.max(1, validated.max_stamina ?? 1);
+    validated.rank = Math.max(1, Math.min(10, validated.rank ?? 1));
+    validated.defence = Math.max(0, validated.defence ?? 0);
+    // Limiter équipement à 12
+    if (validated.equipment && validated.equipment.length > 12) {
+      validated.equipment = validated.equipment.slice(0, 12);
+    }
     setSaving(true);
     try {
-      await api.updateCharacter(Number(id), editData);
-      setChar({ ...char, ...editData });
+      await api.updateCharacter(Number(id), validated);
+      setChar({ ...char, ...validated });
+      setEditData(validated);
       setEditing(false);
     } catch (err) {
       console.error(err);
@@ -174,9 +186,9 @@ export default function CharacterSheet() {
               <span className="font-body text-parchment-200 font-semibold">Endurance</span>
               {editing ? (
                 <div className="flex gap-1 items-center">
-                  <input type="number" value={editData.stamina} onChange={e => setEditData({ ...editData, stamina: Number(e.target.value) })} className="fantasy-input w-16 text-center text-sm" />
+                  <input type="number" value={editData.stamina} onChange={e => setEditData({ ...editData, stamina: Math.min(Number(e.target.value), editData.max_stamina) })} className="fantasy-input w-16 text-center text-sm" min={0} max={editData.max_stamina} />
                   <span className="text-parchment-500">/</span>
-                  <input type="number" value={editData.max_stamina} onChange={e => setEditData({ ...editData, max_stamina: Number(e.target.value) })} className="fantasy-input w-16 text-center text-sm" />
+                  <input type="number" value={editData.max_stamina} onChange={e => setEditData({ ...editData, max_stamina: Math.max(1, Number(e.target.value)) })} className="fantasy-input w-16 text-center text-sm" min={1} />
                 </div>
               ) : (
                 <span className="font-medieval text-xl text-fantasy-gold">{char.stamina} / {char.max_stamina}</span>
@@ -191,7 +203,7 @@ export default function CharacterSheet() {
             <div className="flex justify-between">
               <span className="font-body text-parchment-200 font-semibold">Défense</span>
               {editing ? (
-                <input type="number" value={editData.defence} onChange={e => setEditData({ ...editData, defence: Number(e.target.value) })} className="fantasy-input w-16 text-center text-sm" />
+                <input type="number" value={editData.defence} onChange={e => setEditData({ ...editData, defence: Math.max(0, Number(e.target.value)) })} className="fantasy-input w-16 text-center text-sm" min={0} />
               ) : (
                 <span className="font-medieval text-xl text-fantasy-gold">{char.defence}</span>
               )}
@@ -199,7 +211,7 @@ export default function CharacterSheet() {
             <div className="flex justify-between">
               <span className="font-body text-parchment-200 font-semibold">Argent (chardes)</span>
               {editing ? (
-                <input type="number" value={editData.money} onChange={e => setEditData({ ...editData, money: Number(e.target.value) })} className="fantasy-input w-16 text-center text-sm" />
+                <input type="number" value={editData.money} onChange={e => setEditData({ ...editData, money: Math.max(0, Number(e.target.value)) })} className="fantasy-input w-16 text-center text-sm" min={0} />
               ) : (
                 <span className="font-medieval text-xl text-fantasy-gold">{char.money}</span>
               )}

@@ -31,6 +31,9 @@ export default function CombatHelper() {
   const [rolling, setRolling] = useState(false);
   const [lastDice, setLastDice] = useState<[number, number] | null>(null);
   const [showDeathModal, setShowDeathModal] = useState(false);
+  const [initialStamina, setInitialStamina] = useState<number | null>(null);
+  const [canUseReroll, setCanUseReroll] = useState(false);
+  const [pendingRerollState, setPendingRerollState] = useState<CombatState | null>(null);
 
   // Skill test state
   const [testSkill, setTestSkill] = useState('combat');
@@ -61,8 +64,34 @@ export default function CombatHelper() {
   const startCombat = () => {
     if (!selectedChar || !enemyName) return;
     const enemy: Enemy = { name: enemyName, combat: enemyCombat, defence: enemyDefence, stamina: enemyStamina };
+    setInitialStamina(selectedChar.stamina);
     setCombatState(initCombat(selectedChar, enemy));
   };
+
+  /** Applique le résultat d'un round (mise à jour endurance, log, mort) */
+  const applyRoundResult = useCallback((newState: CombatState) => {
+    setCombatState(newState);
+    setCanUseReroll(false);
+    setPendingRerollState(null);
+
+    if (newState.playerStamina !== selectedChar?.stamina && selectedChar?.id) {
+      api.updateCharacter(selectedChar.id, { stamina: newState.playerStamina });
+      setSelectedChar({ ...selectedChar, stamina: newState.playerStamina });
+    }
+
+    if (newState.finished && selectedChar?.id) {
+      api.saveCombatLog(selectedChar.id, {
+        enemy_name: enemyName,
+        enemy_defence: enemyDefence,
+        enemy_stamina: enemyStamina,
+        result: newState.winner,
+        rounds: newState.rounds,
+      });
+      if (newState.winner === 'enemy' && newState.playerStamina <= 0) {
+        setShowDeathModal(true);
+      }
+    }
+  }, [selectedChar, enemyName, enemyDefence, enemyStamina]);
 
   const nextRound = useCallback(() => {
     if (!selectedChar || !combatState || combatState.finished) return;
@@ -73,31 +102,21 @@ export default function CombatHelper() {
     setTimeout(() => {
       const enemy: Enemy = { name: enemyName, combat: enemyCombat, defence: enemyDefence, stamina: enemyStamina };
       const newState = resolveRound(selectedChar, enemy, combatState);
-      setCombatState(newState);
       setRolling(false);
 
-      // Mettre à jour l'endurance du personnage
-      if (newState.playerStamina !== selectedChar.stamina && selectedChar.id) {
-        api.updateCharacter(selectedChar.id, { stamina: newState.playerStamina });
-        setSelectedChar({ ...selectedChar, stamina: newState.playerStamina });
-      }
-
-      // Sauvegarder le log de combat quand terminé
-      if (newState.finished && selectedChar.id) {
-        api.saveCombatLog(selectedChar.id, {
-          enemy_name: enemyName,
-          enemy_defence: enemyDefence,
-          enemy_stamina: enemyStamina,
-          result: newState.winner,
-          rounds: newState.rounds,
-        });
-        // Si le joueur est mort (endurance = 0), afficher le modal de mort
-        if (newState.winner === 'enemy' && newState.playerStamina <= 0) {
-          setShowDeathModal(true);
-        }
+      // Si bénédiction de relance et round défavorable, proposer la relance
+      const bBonus = getBlessingBonus(selectedChar);
+      const lastRound = newState.rounds[newState.rounds.length - 1];
+      if (bBonus.canReroll && lastRound && lastRound.playerDamage === 0 && lastRound.enemyDamage > 0) {
+        // Round défavorable : proposer la relance
+        setPendingRerollState(newState);
+        setCanUseReroll(true);
+        setCombatState(newState);
+      } else {
+        applyRoundResult(newState);
       }
     }, 800);
-  }, [selectedChar, combatState, enemyName, enemyCombat, enemyDefence, enemyStamina]);
+  }, [selectedChar, combatState, enemyName, enemyCombat, enemyDefence, enemyStamina, applyRoundResult]);
 
   /** Fuite : l'ennemi a une attaque gratuite, puis le combat se termine */
   const handleFlee = useCallback(() => {
@@ -135,15 +154,47 @@ export default function CombatHelper() {
     }, 800);
   }, [selectedChar, combatState, enemyName, enemyCombat, enemyDefence, enemyStamina]);
 
+  /** Relancer les dés (bénédiction chance/fortune) */
+  const handleReroll = useCallback(() => {
+    if (!selectedChar || !combatState || !pendingRerollState) return;
+    setCanUseReroll(false);
+    setRolling(true);
+
+    setTimeout(() => {
+      // Retirer le dernier round et relancer
+      const stateBeforeRound: CombatState = {
+        ...combatState,
+        rounds: combatState.rounds.slice(0, -1),
+        playerStamina: pendingRerollState.rounds.length > 1
+          ? pendingRerollState.rounds[pendingRerollState.rounds.length - 2].playerStamina
+          : initialStamina ?? selectedChar.stamina,
+        enemyStamina: pendingRerollState.rounds.length > 1
+          ? pendingRerollState.rounds[pendingRerollState.rounds.length - 2].enemyStamina
+          : enemyStamina,
+        finished: false,
+        winner: null,
+      };
+      const enemy: Enemy = { name: enemyName, combat: enemyCombat, defence: enemyDefence, stamina: enemyStamina };
+      const newState = resolveRound(selectedChar, enemy, stateBeforeRound);
+      const newDice = newState.rounds[newState.rounds.length - 1].playerRoll as [number, number];
+      setLastDice(newDice);
+      setRolling(false);
+      setPendingRerollState(null);
+      applyRoundResult(newState);
+    }, 800);
+  }, [selectedChar, combatState, pendingRerollState, initialStamina, enemyName, enemyCombat, enemyDefence, enemyStamina, applyRoundResult]);
+
+  /** Accepter le round sans relancer */
+  const acceptRound = useCallback(() => {
+    if (pendingRerollState) {
+      applyRoundResult(pendingRerollState);
+    }
+  }, [pendingRerollState, applyRoundResult]);
+
   /** Annuler : supprime tout le combat, remet l'endurance d'avant, aucune trace */
   const handleCancel = () => {
-    if (combatState && selectedChar?.id) {
-      // Remettre l'endurance d'origine (avant le combat)
-      const originalStamina = combatState.rounds.length > 0
-        ? combatState.rounds[0].playerStamina + combatState.rounds[0].enemyDamage
-        : selectedChar.stamina;
-      // On remet l'endurance du personnage au niveau d'avant combat
-      api.updateCharacter(selectedChar.id, { stamina: selectedChar.max_stamina >= originalStamina ? originalStamina : selectedChar.stamina });
+    if (selectedChar?.id && initialStamina !== null) {
+      api.updateCharacter(selectedChar.id, { stamina: initialStamina });
     }
     setCombatState(null);
     setLastDice(null);
@@ -151,6 +202,9 @@ export default function CombatHelper() {
     setEnemyCombat(5);
     setEnemyDefence(5);
     setEnemyStamina(10);
+    setInitialStamina(null);
+    setCanUseReroll(false);
+    setPendingRerollState(null);
     setSelectedChar(null);
   };
 
@@ -196,6 +250,9 @@ export default function CombatHelper() {
   const resetCombat = () => {
     setCombatState(null);
     setLastDice(null);
+    setInitialStamina(null);
+    setCanUseReroll(false);
+    setPendingRerollState(null);
   };
 
   const runSkillTest = () => {
@@ -376,6 +433,22 @@ export default function CombatHelper() {
                           </p>
                         )}
                         <button onClick={resetCombat} className="fantasy-button">Nouveau combat</button>
+                      </div>
+                    ) : canUseReroll ? (
+                      <div className="space-y-2">
+                        <div className="p-3 bg-purple-900/30 border border-purple-600 rounded-lg text-center">
+                          <p className="text-purple-300 font-medieval text-sm mb-2">
+                            Bénédiction de chance ! Vous pouvez relancer vos dés.
+                          </p>
+                          <div className="flex gap-2">
+                            <button onClick={handleReroll} disabled={rolling} className="flex-1 px-4 py-2 rounded font-medieval text-sm bg-purple-800 text-purple-100 border border-purple-500 hover:bg-purple-700 transition-all">
+                              Relancer les dés
+                            </button>
+                            <button onClick={acceptRound} disabled={rolling} className="flex-1 fantasy-button text-center text-sm">
+                              Garder ce résultat
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-2">
