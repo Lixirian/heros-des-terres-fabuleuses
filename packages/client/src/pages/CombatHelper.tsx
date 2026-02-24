@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../utils/api';
 import { Character } from '../data/types';
-import { Enemy, CombatState, initCombat, resolveRound, getEquipmentBonus } from '../utils/combatResolver';
+import { Enemy, CombatState, initCombat, resolveRound, resolveFlee, getEquipmentBonus, getBlessingBonus } from '../utils/combatResolver';
 import { roll2d6, skillTest, SkillTestResult } from '../utils/diceRoller';
 import DiceAnimation from '../components/combat/DiceAnimation';
 
@@ -75,13 +75,13 @@ export default function CombatHelper() {
       setCombatState(newState);
       setRolling(false);
 
-      // Update character stamina if changed
+      // Mettre à jour l'endurance du personnage
       if (newState.playerStamina !== selectedChar.stamina && selectedChar.id) {
         api.updateCharacter(selectedChar.id, { stamina: newState.playerStamina });
         setSelectedChar({ ...selectedChar, stamina: newState.playerStamina });
       }
 
-      // Save combat log when finished
+      // Sauvegarder le log de combat quand terminé
       if (newState.finished && selectedChar.id) {
         api.saveCombatLog(selectedChar.id, {
           enemy_name: enemyName,
@@ -93,6 +93,57 @@ export default function CombatHelper() {
       }
     }, 800);
   }, [selectedChar, combatState, enemyName, enemyCombat, enemyDefence, enemyStamina]);
+
+  /** Fuite : l'ennemi a une attaque gratuite, puis le combat se termine */
+  const handleFlee = useCallback(() => {
+    if (!selectedChar || !combatState || combatState.finished) return;
+    setRolling(true);
+    const dice = roll2d6();
+    setLastDice(dice);
+
+    setTimeout(() => {
+      const enemy: Enemy = { name: enemyName, combat: enemyCombat, defence: enemyDefence, stamina: enemyStamina };
+      const newState = resolveFlee(selectedChar, enemy, combatState);
+      setCombatState(newState);
+      setRolling(false);
+
+      // Mettre à jour l'endurance (dégâts de l'attaque gratuite)
+      if (newState.playerStamina !== selectedChar.stamina && selectedChar.id) {
+        api.updateCharacter(selectedChar.id, { stamina: newState.playerStamina });
+        setSelectedChar({ ...selectedChar, stamina: newState.playerStamina });
+      }
+
+      // Sauvegarder le log avec résultat "fled"
+      if (selectedChar.id) {
+        api.saveCombatLog(selectedChar.id, {
+          enemy_name: enemyName,
+          enemy_defence: enemyDefence,
+          enemy_stamina: enemyStamina,
+          result: newState.winner,
+          rounds: newState.rounds,
+        });
+      }
+    }, 800);
+  }, [selectedChar, combatState, enemyName, enemyCombat, enemyDefence, enemyStamina]);
+
+  /** Annuler : supprime tout le combat, remet l'endurance d'avant, aucune trace */
+  const handleCancel = () => {
+    if (combatState && selectedChar?.id) {
+      // Remettre l'endurance d'origine (avant le combat)
+      const originalStamina = combatState.rounds.length > 0
+        ? combatState.rounds[0].playerStamina + combatState.rounds[0].enemyDamage
+        : selectedChar.stamina;
+      // On remet l'endurance du personnage au niveau d'avant combat
+      api.updateCharacter(selectedChar.id, { stamina: selectedChar.max_stamina >= originalStamina ? originalStamina : selectedChar.stamina });
+    }
+    setCombatState(null);
+    setLastDice(null);
+    setEnemyName('');
+    setEnemyCombat(5);
+    setEnemyDefence(5);
+    setEnemyStamina(10);
+    setSelectedChar(null);
+  };
 
   const resetCombat = () => {
     setCombatState(null);
@@ -110,6 +161,13 @@ export default function CombatHelper() {
       setTestRolling(false);
     }, 800);
   };
+
+  // Calcul des bonus pour affichage
+  const combatBonusDisplay = selectedChar ? getEquipmentBonus(selectedChar, 'combat') : 0;
+  const defenceBonusDisplay = selectedChar ? getEquipmentBonus(selectedChar, 'defence') : 0;
+  const blessingBonus = selectedChar ? getBlessingBonus(selectedChar) : { combat: 0, defence: 0, canReroll: false };
+  const totalCombat = selectedChar ? selectedChar.combat + combatBonusDisplay + blessingBonus.combat : 0;
+  const totalDefence = selectedChar ? selectedChar.defence + defenceBonusDisplay + blessingBonus.defence : 0;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto space-y-6">
@@ -149,8 +207,16 @@ export default function CombatHelper() {
               <div>
                 <p className="font-medieval text-xl text-fantasy-gold">{selectedChar.name}</p>
                 <p className="text-sm text-parchment-300">
-                  COM: {selectedChar.combat} | DEF: {selectedChar.defence} | END: {selectedChar.stamina}/{selectedChar.max_stamina}
+                  COM: {totalCombat}{(combatBonusDisplay > 0 || blessingBonus.combat > 0) && <span className="text-green-400"> ({selectedChar.combat}+{combatBonusDisplay + blessingBonus.combat})</span>}
+                  {' | '}DEF: {totalDefence}{(defenceBonusDisplay > 0 || blessingBonus.defence > 0) && <span className="text-green-400"> ({selectedChar.defence}+{defenceBonusDisplay + blessingBonus.defence})</span>}
+                  {' | '}END: {selectedChar.stamina}/{selectedChar.max_stamina}
                 </p>
+                {selectedChar.blessings.length > 0 && (
+                  <p className="text-xs text-purple-400">
+                    Bénédictions : {selectedChar.blessings.join(', ')}
+                    {blessingBonus.canReroll && ' (relance possible)'}
+                  </p>
+                )}
               </div>
             </div>
             <button onClick={() => { setSelectedChar(null); resetCombat(); }} className="text-sm text-parchment-500 hover:text-fantasy-red">
@@ -225,6 +291,19 @@ export default function CombatHelper() {
                       </div>
                     </div>
 
+                    {/* Bonus recap */}
+                    {(combatBonusDisplay > 0 || defenceBonusDisplay > 0 || blessingBonus.combat > 0 || blessingBonus.defence > 0) && (
+                      <div className="text-center text-xs text-parchment-400 mb-2">
+                        Bonus actifs :
+                        {(combatBonusDisplay > 0 || blessingBonus.combat > 0) && (
+                          <span className="text-green-400 ml-1">+{combatBonusDisplay + blessingBonus.combat} Combat</span>
+                        )}
+                        {(defenceBonusDisplay > 0 || blessingBonus.defence > 0) && (
+                          <span className="text-blue-400 ml-1">+{defenceBonusDisplay + blessingBonus.defence} Défense</span>
+                        )}
+                      </div>
+                    )}
+
                     {/* Dice Display */}
                     <div className="flex justify-center gap-6 my-6">
                       <DiceAnimation rolling={rolling} value={lastDice?.[0] ?? 0} />
@@ -234,9 +313,20 @@ export default function CombatHelper() {
                     {/* Action Buttons */}
                     {combatState.finished ? (
                       <div className="text-center space-y-3">
-                        <p className={`font-medieval text-2xl ${combatState.winner === 'player' ? 'text-green-400' : 'text-fantasy-red'}`}>
-                          {combatState.winner === 'player' ? 'Victoire !' : 'Défaite...'}
+                        <p className={`font-medieval text-2xl ${
+                          combatState.winner === 'player' ? 'text-green-400' :
+                          combatState.winner === 'fled' ? 'text-yellow-400' :
+                          'text-fantasy-red'
+                        }`}>
+                          {combatState.winner === 'player' && 'Victoire !'}
+                          {combatState.winner === 'enemy' && 'Défaite...'}
+                          {combatState.winner === 'fled' && 'Fuite !'}
                         </p>
+                        {combatState.winner === 'fled' && (
+                          <p className="text-sm text-parchment-300">
+                            Vous avez fui le combat. L'ennemi a porté une dernière attaque.
+                          </p>
+                        )}
                         <button onClick={resetCombat} className="fantasy-button">Nouveau combat</button>
                       </div>
                     ) : (
@@ -244,9 +334,14 @@ export default function CombatHelper() {
                         <button onClick={nextRound} disabled={rolling} className="fantasy-button w-full text-center text-lg">
                           {rolling ? 'Lancer des dés...' : 'Lancer le round !'}
                         </button>
-                        <button onClick={resetCombat} className="fantasy-button-danger w-full text-center text-sm">
-                          Abandonner le combat
-                        </button>
+                        <div className="flex gap-2">
+                          <button onClick={handleFlee} disabled={rolling} className="flex-1 px-4 py-2 rounded font-medieval text-sm bg-yellow-800/50 text-yellow-300 border border-yellow-600 hover:bg-yellow-700/50 transition-all text-center">
+                            Fuite
+                          </button>
+                          <button onClick={handleCancel} disabled={rolling} className="flex-1 fantasy-button-danger text-center text-sm">
+                            Annuler le combat
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -257,14 +352,25 @@ export default function CombatHelper() {
                       <h3 className="section-title">Historique des rounds</h3>
                       <div className="space-y-2 max-h-60 overflow-y-auto">
                         {[...combatState.rounds].reverse().map(round => (
-                          <div key={round.round} className="p-3 bg-parchment-800/50 rounded border border-parchment-600 text-sm">
-                            <p className="font-semibold text-parchment-100">Round {round.round}</p>
-                            <p className="text-parchment-200">
-                              {selectedChar.name}: [{round.playerRoll.join(', ')}] + {selectedChar.combat} = {round.playerTotal} → {round.playerDamage} dégâts
+                          <div key={round.round} className={`p-3 bg-parchment-800/50 rounded border text-sm ${round.isFlee ? 'border-yellow-600' : 'border-parchment-600'}`}>
+                            <p className="font-semibold text-parchment-100">
+                              Round {round.round}
+                              {round.isFlee && <span className="text-yellow-400 ml-2">(Fuite)</span>}
                             </p>
-                            <p className="text-parchment-200">
-                              {enemyName}: [{round.enemyRoll.join(', ')}] + {enemyCombat} = {round.enemyTotal} → {round.enemyDamage} dégâts
-                            </p>
+                            {round.isFlee ? (
+                              <p className="text-parchment-200">
+                                {selectedChar.name} fuit ! {enemyName} attaque : [{round.enemyRoll.join(', ')}] + {enemyCombat} = {round.enemyTotal} → {round.enemyDamage} dégâts
+                              </p>
+                            ) : (
+                              <>
+                                <p className="text-parchment-200">
+                                  {selectedChar.name}: [{round.playerRoll.join(', ')}] + {totalCombat} = {round.playerTotal} → {round.playerDamage} dégâts
+                                </p>
+                                <p className="text-parchment-200">
+                                  {enemyName}: [{round.enemyRoll.join(', ')}] + {enemyCombat} = {round.enemyTotal} → {round.enemyDamage} dégâts
+                                </p>
+                              </>
+                            )}
                             <p className="text-xs text-parchment-500">
                               END: {selectedChar.name} {round.playerStamina} | {enemyName} {round.enemyStamina}
                             </p>

@@ -73,4 +73,5 @@ export interface CombatRound {
   enemyDamage: number;
   playerStamina: number;
   enemyStamina: number;
+  isFlee?: boolean;
 }
