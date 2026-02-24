@@ -2,9 +2,15 @@
 FROM node:20-alpine
 WORKDIR /app
 
+# Install build tools for native modules (better-sqlite3)
+RUN apk add --no-cache python3 make g++
+
 # Install server dependencies
 COPY packages/server/package.json ./packages/server/
 RUN cd packages/server && npm install --omit=dev
+
+# Remove build tools to reduce image size
+RUN apk del python3 make g++
 
 # Copy pre-built server
 COPY packages/server/dist ./packages/server/dist

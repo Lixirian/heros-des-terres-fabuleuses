@@ -1,9 +1,39 @@
 import { Router, Request, Response } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { getDb } from '../db/schema';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 router.use(authMiddleware);
+
+// Configure multer for portrait uploads
+const dataDir = process.env.DB_PATH ? path.dirname(process.env.DB_PATH) : './data';
+const portraitsDir = path.join(dataDir, 'portraits');
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    fs.mkdirSync(portraitsDir, { recursive: true });
+    cb(null, portraitsDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, `${req.params.id}-${Date.now()}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
+  fileFilter: (_req, file, cb) => {
+    if (/^image\/(jpeg|png|webp)$/.test(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Type de fichier non supporté. Utilisez JPEG, PNG ou WebP.'));
+    }
+  },
+});
 
 // List user's characters
 router.get('/', (req: Request, res: Response) => {
@@ -104,6 +134,21 @@ router.put('/:id', (req: Request, res: Response) => {
   db.prepare(`UPDATE characters SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`).run(...values);
   const char = db.prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
   res.json(char);
+});
+
+// Upload portrait
+router.post('/:id/portrait', upload.single('portrait'), (req: Request, res: Response) => {
+  const db = getDb();
+  const userId = (req as AuthRequest).userId!;
+  const existing = db.prepare('SELECT id FROM characters WHERE id = ? AND user_id = ?').get(req.params.id, userId);
+  if (!existing) return res.status(404).json({ error: 'Personnage introuvable' });
+
+  if (!req.file) return res.status(400).json({ error: 'Aucun fichier envoyé' });
+
+  const portraitUrl = `/uploads/portraits/${req.file.filename}`;
+  db.prepare('UPDATE characters SET portrait = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(portraitUrl, req.params.id);
+
+  res.json({ portrait: portraitUrl });
 });
 
 // Delete character

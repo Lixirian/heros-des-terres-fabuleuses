@@ -11,6 +11,10 @@ const PORT = process.env.PORT || 46127;
 app.use(cors());
 app.use(express.json());
 
+// Serve uploaded files (portraits, etc.)
+const dataDir = process.env.DB_PATH ? path.dirname(process.env.DB_PATH) : './data';
+app.use('/uploads', express.static(path.join(dataDir)));
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/characters', characterRoutes);

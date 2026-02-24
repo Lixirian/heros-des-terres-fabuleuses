@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../utils/api';
@@ -28,6 +28,22 @@ export default function CharacterSheet() {
   const [showRankModal, setShowRankModal] = useState(false);
   const [pendingRank, setPendingRank] = useState<number | null>(null);
   const [showPortraitPicker, setShowPortraitPicker] = useState(false);
+  const [uploadingPortrait, setUploadingPortrait] = useState(false);
+  const portraitInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePortraitUpload = async (file: File) => {
+    if (!id) return;
+    setUploadingPortrait(true);
+    try {
+      const result = await api.uploadPortrait(Number(id), file);
+      setEditData({ ...editData, portrait: result.portrait });
+      setShowPortraitPicker(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploadingPortrait(false);
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -154,6 +170,25 @@ export default function CharacterSheet() {
                         );
                       })}
                     </div>
+                    <input
+                      ref={portraitInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) handlePortraitUpload(file);
+                        e.target.value = '';
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => portraitInputRef.current?.click()}
+                      disabled={uploadingPortrait}
+                      className="mt-2 w-full text-center text-xs font-body py-1.5 rounded border border-dashed border-parchment-500 text-parchment-300 hover:border-fantasy-gold hover:text-fantasy-gold transition-all disabled:opacity-50"
+                    >
+                      {uploadingPortrait ? 'Envoi en cours...' : 'Importer une image'}
+                    </button>
                   </div>
                 )}
               </div>

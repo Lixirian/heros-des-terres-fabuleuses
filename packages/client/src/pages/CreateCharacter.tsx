@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../utils/api';
@@ -22,6 +22,9 @@ export default function CreateCharacter() {
   const [god, setGod] = useState('Aucun');
   const [backstory, setBackstory] = useState('');
   const [portrait, setPortrait] = useState('');
+  const [portraitFile, setPortraitFile] = useState<File | null>(null);
+  const [portraitPreview, setPortraitPreview] = useState('');
+  const portraitInputRef = useRef<HTMLInputElement>(null);
 
   const stats = statsTable[profession]?.[rankRange];
   const profData = professions.find(p => p.name === profession)!;
@@ -52,6 +55,14 @@ export default function CreateCharacter() {
         backstory,
         portrait: portrait || null,
       });
+      // Upload custom portrait after character creation
+      if (portraitFile) {
+        try {
+          await api.uploadPortrait(char.id, portraitFile);
+        } catch {
+          // Portrait upload failed but character was created, continue
+        }
+      }
       navigate(`/character/${char.id}`);
     } catch (err: any) {
       setError(err.message);
@@ -132,9 +143,9 @@ export default function CreateCharacter() {
               <div className="grid grid-cols-5 sm:grid-cols-6 gap-3">
                 <button
                   type="button"
-                  onClick={() => setPortrait('')}
+                  onClick={() => { setPortrait(''); setPortraitFile(null); setPortraitPreview(''); }}
                   className={`w-14 h-14 rounded-full border-2 transition-all flex items-center justify-center ${
-                    portrait === ''
+                    portrait === '' && !portraitFile
                       ? 'border-fantasy-gold bg-fantasy-gold/10 shadow-lg shadow-fantasy-gold/20'
                       : 'border-parchment-600 hover:border-parchment-500'
                   }`}
@@ -147,9 +158,9 @@ export default function CreateCharacter() {
                     <button
                       key={i}
                       type="button"
-                      onClick={() => setPortrait(src)}
+                      onClick={() => { setPortrait(src); setPortraitFile(null); setPortraitPreview(''); }}
                       className={`w-14 h-14 rounded-full border-2 transition-all overflow-hidden ${
-                        portrait === src
+                        portrait === src && !portraitFile
                           ? 'border-fantasy-gold shadow-lg shadow-fantasy-gold/20 scale-110'
                           : 'border-parchment-600 hover:border-parchment-500'
                       }`}
@@ -158,6 +169,39 @@ export default function CreateCharacter() {
                     </button>
                   );
                 })}
+                {/* Custom upload button */}
+                {portraitPreview ? (
+                  <button
+                    type="button"
+                    onClick={() => portraitInputRef.current?.click()}
+                    className="w-14 h-14 rounded-full border-2 border-fantasy-gold shadow-lg shadow-fantasy-gold/20 scale-110 overflow-hidden transition-all"
+                  >
+                    <img src={portraitPreview} alt="Portrait personnalisé" className="w-full h-full object-cover" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => portraitInputRef.current?.click()}
+                    className="w-14 h-14 rounded-full border-2 border-dashed border-parchment-500 hover:border-fantasy-gold transition-all flex items-center justify-center"
+                  >
+                    <span className="text-parchment-400 text-xl leading-none">+</span>
+                  </button>
+                )}
+                <input
+                  ref={portraitInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setPortraitFile(file);
+                      setPortraitPreview(URL.createObjectURL(file));
+                      setPortrait('');
+                    }
+                    e.target.value = '';
+                  }}
+                />
               </div>
             </div>
 

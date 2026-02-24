@@ -43,6 +43,22 @@ export const api = {
   deleteCharacter: (id: number) =>
     request<any>(`/characters/${id}`, { method: 'DELETE' }),
 
+  uploadPortrait: async (id: number, file: File): Promise<{ portrait: string }> => {
+    const token = localStorage.getItem('htf_token');
+    const formData = new FormData();
+    formData.append('portrait', file);
+    const res = await fetch(`${API_BASE}/characters/${id}/portrait`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({ error: 'Erreur réseau' }));
+      throw new Error(data.error || `Erreur ${res.status}`);
+    }
+    return res.json();
+  },
+
   // Book progress
   getBookProgress: (charId: number, book: number) =>
     request<any[]>(`/books/${charId}/${book}`),
