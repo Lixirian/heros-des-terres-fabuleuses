@@ -1,19 +1,4 @@
-# Stage 1: Build frontend + backend
-FROM node:20-alpine AS builder
-WORKDIR /app
-
-COPY package.json ./
-COPY packages/client/package.json packages/client/
-COPY packages/server/package.json packages/server/
-
-RUN npm install
-
-COPY packages/client/ packages/client/
-COPY packages/server/ packages/server/
-
-RUN cd packages/client && npx tsc && npx vite build && cd ../server && npx tsc -p tsconfig.json
-
-# Stage 2: Production
+# Single stage: use pre-built dist files
 FROM node:20-alpine
 WORKDIR /app
 
@@ -21,11 +6,14 @@ WORKDIR /app
 COPY packages/server/package.json ./packages/server/
 RUN cd packages/server && npm install --omit=dev
 
-# Copy built server
-COPY --from=builder /app/packages/server/dist ./packages/server/dist
+# Copy pre-built server
+COPY packages/server/dist ./packages/server/dist
 
-# Copy built frontend
-COPY --from=builder /app/packages/client/dist ./packages/client/dist
+# Copy pre-built frontend
+COPY packages/client/dist ./packages/client/dist
+
+# Copy static assets (portraits, maps, etc.)
+COPY packages/client/public ./packages/client/dist
 
 # Copy root package.json
 COPY package.json ./
