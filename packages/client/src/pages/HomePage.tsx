@@ -89,9 +89,14 @@ export default function HomePage() {
             {characters.map(char => (
               <Link key={char.id} to={`/character/${char.id}`} className="parchment-card hover:shadow-xl transition-all group">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-fantasy-gold to-parchment-400 flex items-center justify-center text-parchment-900 font-medieval text-xl shadow-md animate-breathe">
-                    {char.name[0]}
-                  </div>
+                  {char.portrait ? (
+                    <img src={char.portrait} alt={char.name}
+                      className="w-14 h-14 rounded-full object-cover shadow-md border-2 border-fantasy-gold/50 animate-breathe" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-fantasy-gold to-parchment-400 flex items-center justify-center text-parchment-900 font-medieval text-xl shadow-md animate-breathe">
+                      {char.name[0]}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medieval text-lg text-fantasy-gold group-hover:text-fantasy-gold transition-colors truncate">
                       {char.name}
@@ -117,9 +122,14 @@ export default function HomePage() {
           {pregenCharacters.slice(0, 6).map(char => (
             <div key={char.pregen_id} className="parchment-card">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-parchment-400 to-parchment-600 flex items-center justify-center text-parchment-100 font-medieval shadow">
-                  {char.name[0]}
-                </div>
+                {char.portrait ? (
+                  <img src={char.portrait} alt={char.name}
+                    className="w-10 h-10 rounded-full object-cover shadow border-2 border-fantasy-gold/50" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-parchment-400 to-parchment-600 flex items-center justify-center text-parchment-100 font-medieval shadow">
+                    {char.name[0]}
+                  </div>
+                )}
                 <div>
                   <h4 className="font-medieval text-lg text-fantasy-gold">{char.name}</h4>
                   <p className="text-parchment-300 text-xs">{char.profession}</p>

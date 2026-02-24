@@ -105,9 +105,14 @@ export default function CharacterSheet() {
       <div className="parchment-card">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-fantasy-gold to-parchment-400 flex items-center justify-center text-parchment-900 font-medieval text-3xl shadow-lg animate-breathe">
-              {char.name[0]}
-            </div>
+            {char.portrait ? (
+              <img src={char.portrait} alt={char.name}
+                className="w-20 h-20 rounded-full object-cover shadow-lg border-2 border-fantasy-gold/50 animate-breathe" />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-fantasy-gold to-parchment-400 flex items-center justify-center text-parchment-900 font-medieval text-3xl shadow-lg animate-breathe">
+                {char.name[0]}
+              </div>
+            )}
             <div>
               {editing ? (
                 <input

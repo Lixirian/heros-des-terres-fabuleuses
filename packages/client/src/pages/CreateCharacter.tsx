@@ -21,6 +21,7 @@ export default function CreateCharacter() {
   const [rankRange, setRankRange] = useState<RankRange>('1-2');
   const [god, setGod] = useState('Aucun');
   const [backstory, setBackstory] = useState('');
+  const [portrait, setPortrait] = useState('');
 
   const stats = statsTable[profession]?.[rankRange];
   const profData = professions.find(p => p.name === profession)!;
@@ -49,6 +50,7 @@ export default function CreateCharacter() {
         god: god === 'Aucun' ? null : god,
         equipment: profData.startingEquipment,
         backstory,
+        portrait: portrait || null,
       });
       navigate(`/character/${char.id}`);
     } catch (err: any) {
@@ -122,6 +124,41 @@ export default function CreateCharacter() {
             <div>
               <label className="block text-sm font-body text-parchment-200 mb-1 font-semibold">Nom du personnage</label>
               <input value={name} onChange={e => setName(e.target.value)} className="fantasy-input" required placeholder="Ex: Aldric le Brave" />
+            </div>
+
+            {/* Portrait */}
+            <div>
+              <label className="block text-sm font-body text-parchment-200 mb-2 font-semibold">Portrait (optionnel)</label>
+              <div className="grid grid-cols-5 sm:grid-cols-6 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPortrait('')}
+                  className={`w-14 h-14 rounded-full border-2 transition-all flex items-center justify-center ${
+                    portrait === ''
+                      ? 'border-fantasy-gold bg-fantasy-gold/10 shadow-lg shadow-fantasy-gold/20'
+                      : 'border-parchment-600 hover:border-parchment-500'
+                  }`}
+                >
+                  <span className="text-parchment-400 text-xs font-body text-center leading-tight">Aucun</span>
+                </button>
+                {Array.from({ length: 10 }, (_, i) => {
+                  const src = `/assets/characters/gallery/gallery-${String(i + 1).padStart(2, '0')}.svg`;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setPortrait(src)}
+                      className={`w-14 h-14 rounded-full border-2 transition-all overflow-hidden ${
+                        portrait === src
+                          ? 'border-fantasy-gold shadow-lg shadow-fantasy-gold/20 scale-110'
+                          : 'border-parchment-600 hover:border-parchment-500'
+                      }`}
+                    >
+                      <img src={src} alt={`Portrait ${i + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Profession */}
