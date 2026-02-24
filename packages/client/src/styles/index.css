@@ -34,8 +34,9 @@
 
 @layer components {
   .parchment-card {
-    @apply bg-gradient-to-br from-parchment-100 to-parchment-200 text-parchment-900
+    @apply bg-gradient-to-br from-parchment-50 to-parchment-100
            rounded-lg shadow-lg border border-parchment-400/50 p-6;
+    color: #1a1008;
     background-image:
       radial-gradient(ellipse at 20% 50%, rgba(139, 0, 0, 0.03) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 50%, rgba(218, 165, 32, 0.05) 0%, transparent 50%);

@@ -7,7 +7,7 @@ const book5: BookData = {
   region: 'Uttaku',
   color: '#4A1A6B',
   colorAccent: '#9B59B6',
-  maxCode: 710,
+  maxCode: 723,
   description: "Uttaku est un empire décadent de complots et de trahisons, où les nobles portent des masques et manient le poison aussi bien que l'épée. La cour impériale est un nid de vipères où chaque sourire cache une dague.",
 };
 

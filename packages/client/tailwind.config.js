@@ -22,7 +22,7 @@ export default {
           green: '#2E5A3E',
           blue: '#1B3A5C',
           purple: '#4A1A6B',
-          brown: '#5C3A1E',
+          brown: '#3D1F0A',
         },
       },
       fontFamily: {

@@ -7,7 +7,7 @@ const book2: BookData = {
   region: 'Golnir',
   color: '#2E5A3E',
   colorAccent: '#C0C0C0',
-  maxCode: 680,
+  maxCode: 786,
   description: "Golnir est un pays prospère de cités opulentes et de campagnes verdoyantes. Le roi Dorian VII y a trouvé refuge et cherche des alliés. Les guildes marchandes rivalisent de pouvoir, les temples regorgent de trésors, et les forêts abritent des créatures féeriques.",
 };
 
