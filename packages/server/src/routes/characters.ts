@@ -113,10 +113,11 @@ router.put('/:id', (req: Request, res: Response) => {
   const updates: string[] = [];
   const values: any[] = [];
 
+  const boolFields = ['is_initiate', 'is_dead'];
   for (const f of fields) {
     if (req.body[f] !== undefined) {
       updates.push(`${f} = ?`);
-      values.push(req.body[f]);
+      values.push(boolFields.includes(f) ? (req.body[f] ? 1 : 0) : req.body[f]);
     }
   }
   for (const f of jsonFields) {
