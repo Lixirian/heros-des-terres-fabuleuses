@@ -37,6 +37,7 @@ export default function CharacterSheet() {
   const equipSearchRef = useRef<HTMLDivElement>(null);
   const [showCatalog, setShowCatalog] = useState(false);
   const [catalogFilter, setCatalogFilter] = useState<'tous' | 'arme' | 'armure' | 'objet'>('tous');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handlePortraitUpload = async (file: File) => {
     if (!id) return;
@@ -111,13 +112,15 @@ export default function CharacterSheet() {
       validated.equipment = validated.equipment.slice(0, 12);
     }
     setSaving(true);
+    setSaveError(null);
     try {
       await api.updateCharacter(Number(id), validated);
       setChar({ ...char, ...validated });
       setEditData(validated);
       setEditing(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setSaveError(err.message || 'Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
     }
@@ -258,7 +261,8 @@ export default function CharacterSheet() {
                 <button onClick={handleSave} disabled={saving} className="fantasy-button text-sm">
                   {saving ? 'Sauvegarde...' : 'Sauvegarder'}
                 </button>
-                <button onClick={() => { setEditing(false); setEditData(char); }} className="fantasy-button-danger text-sm">
+                {saveError && <span className="text-red-400 text-sm">{saveError}</span>}
+                <button onClick={() => { setEditing(false); setEditData(char); setSaveError(null); }} className="fantasy-button-danger text-sm">
                   Annuler
                 </button>
               </>
@@ -674,7 +678,7 @@ export default function CharacterSheet() {
             {/* Arrangement de résurrection */}
             <button
               onClick={async () => {
-                if (char.resurrection_arrangement || char.money < 200) return;
+                if (char.resurrection_arrangement) return;
                 const templeName = char.god ? `Temple de ${char.god}` : 'Temple local';
                 const cost = char.is_initiate ? 200 : 500;
                 if (char.money < cost) return;

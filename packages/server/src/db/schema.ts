@@ -29,6 +29,9 @@ function migrate(db: Database.Database) {
   if (!colNames.includes('is_dead')) {
     db.exec("ALTER TABLE characters ADD COLUMN is_dead BOOLEAN DEFAULT 0");
   }
+  if (!colNames.includes('temp_bonuses')) {
+    db.exec("ALTER TABLE characters ADD COLUMN temp_bonuses TEXT DEFAULT '{}'");
+  }
 }
 
 function initSchema(db: Database.Database) {

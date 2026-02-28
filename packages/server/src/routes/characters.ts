@@ -108,7 +108,7 @@ router.put('/:id', (req: Request, res: Response) => {
     'god', 'notes', 'portrait', 'backstory',
     'is_initiate', 'resurrection_arrangement', 'is_dead'
   ];
-  const jsonFields = ['blessings', 'titles', 'equipment', 'codewords'];
+  const jsonFields = ['blessings', 'titles', 'equipment', 'codewords', 'temp_bonuses'];
 
   const updates: string[] = [];
   const values: any[] = [];
@@ -146,8 +146,8 @@ router.post('/:id/portrait', upload.single('portrait'), (req: Request, res: Resp
   if (!req.file) return res.status(400).json({ error: 'Aucun fichier envoyé' });
 
   const portraitUrl = `/uploads/portraits/${req.file.filename}`;
-  db.prepare('UPDATE characters SET portrait = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(portraitUrl, req.params.id);
-
+  // Ne pas mettre à jour la BDD ici : le portrait sera sauvegardé
+  // via PUT /characters/:id quand l'utilisateur clique "Sauvegarder"
   res.json({ portrait: portraitUrl });
 });
 

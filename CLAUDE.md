@@ -81,43 +81,52 @@ Application web self-hosted pour le jeu "Héros des Terres Fabuleuses" (Fabled L
 
 ### Stack
 
-- **Frontend** : React 18 + TypeScript + Vite + Tailwind CSS + Framer Motion (SPA)
+- **Frontend** : React 18 + TypeScript + Vite + Tailwind CSS + Framer Motion (SPA + PWA)
 - **Backend** : Node.js/Express + TypeScript, sert aussi le frontend buildé en production
-- **BDD** : SQLite via better-sqlite3 (fichier `/app/data/htf.db`)
-- **Auth** : JWT (jsonwebtoken + bcryptjs)
-- **Docker** : build multi-stage (node:20-alpine)
+- **BDD** : SQLite via better-sqlite3 (fichier `/app/data/htf.db`, mode WAL)
+- **Auth** : JWT 7 jours (jsonwebtoken + bcryptjs)
+- **Docker** : single-stage node:20-alpine (TS compilé localement, pas dans Docker)
+- **Pas de tests ni de linting configurés** — TypeScript strict est le seul filet de sécurité
 
 ### Backend (packages/server/src/)
 
 Le serveur Express écoute sur le port 46127 et expose des routes API sous `/api/` :
 
-- `routes/auth.ts` — Register, Login JWT, Get current user
-- `routes/characters.ts` — CRUD personnages (protégé par auth)
-- `routes/books.ts` — Progression livres (codes visités, notes), logs de combat
+- `routes/auth.ts` — Register, Login JWT (`login` accepte username OU email), Get current user
+- `routes/characters.ts` — CRUD personnages (protégé par auth), upload portrait via multer (2 Mo, JPEG/PNG/WebP)
+- `routes/books.ts` — Progression livres (codes visités, notes), logs de combat (50 derniers)
 
-**Middleware** : `middleware/auth.ts` (JWT Bearer)
-**BDD** : `db/schema.ts` — Initialisation SQLite avec 4 tables (users, characters, book_progress, combat_log)
+**Middleware** : `middleware/auth.ts` — JWT Bearer, attache `req.userId` via interface `AuthRequest`
+**BDD** : `db/schema.ts` — Init idempotente (`CREATE TABLE IF NOT EXISTS`) + migrations additives via `PRAGMA table_info`
+
+#### Pièges importants du backend
+
+- **Champs JSON en SQLite** : `blessings`, `titles`, `equipment`, `codewords`, `temp_bonuses` sont stockés comme strings JSON. Le serveur fait `JSON.stringify` à l'écriture. Le client reçoit des strings brutes et doit les parser. Côté serveur, il faut `JSON.parse` explicitement si besoin.
+- **Upload portrait en 2 étapes** : `POST /characters/:id/portrait` upload le fichier et retourne l'URL, mais n'écrit PAS en BDD. Il faut ensuite faire `PUT /characters/:id` avec `{ portrait: url }`.
+- **Toggle code livre** : `POST /books/:charId/:book/:code` — si le code existe et qu'un `notes` est fourni → update notes ; si pas de notes → supprime (dé-visite) ; si n'existe pas → insert.
+- **Fichiers statiques** : `/uploads` sert depuis `path.dirname(DB_PATH)` (= `/app/data` en Docker). Les portraits sont dans `data/portraits/`.
+- **PUT /characters/:id** : utilise deux listes (`fields` pour scalaires, `jsonFields` pour arrays/objects) pour construire dynamiquement le UPDATE SQL.
 
 ### Frontend (packages/client/src/)
 
-SPA React avec react-router-dom v6. Routes protégées par `ProtectedRoute`.
+SPA React avec react-router-dom v6. Routes protégées par `ProtectedRoute`. Alias `@` → `packages/client/src/`.
 
-- `hooks/useAuth.tsx` — Context d'auth global, token JWT dans localStorage
-- `utils/api.ts` — Client API fetch centralisé avec auto-ajout token
+- `hooks/useAuth.tsx` — Context d'auth global, token JWT dans `localStorage` (clé `htf_token`)
+- `utils/api.ts` — Client API fetch centralisé avec auto-ajout token (URL relative `/api`, fonctionne en dev et prod)
 - `utils/diceRoller.ts` — Lanceur de dés 2d6 et tests de compétence
-- `utils/combatResolver.ts` — Moteur de combat (rounds, dégâts, équipement)
-- `data/` — Données de jeu (professions, stats, prétirés, livres 1-6, équipement)
+- `utils/combatResolver.ts` — Moteur de combat pur (pas d'effets de bord) : rounds, dégâts, bonus équipement/bénédictions, fuite
+- `data/` — Données de jeu statiques en TS (professions, stats par rang, prétirés, livres 1-6, équipement 60+ items, mots de code Alkonost, dieux)
 
-**Pages** : Accueil, Profil, Fiche personnage, Création personnage, Combat, Livres & Codes, Carte, Règles
+**Pages** : Accueil (liste persos), Profil, Fiche personnage, Création personnage, Combat, Livres & Codes, Carte, Règles
 
-**Design** : Thème fantasy médiéval (Tailwind custom), polices MedievalSharp + Crimson Text, animations Framer Motion
+**Design** : Thème fantasy médiéval — couleurs custom Tailwind (`parchment-*`, `fantasy-*`), polices `font-medieval` (MedievalSharp) + `font-body` (Crimson Text), composants CSS custom (`.parchment-card`, `.fantasy-button`, `.stat-badge`, dés 3D CSS)
 
 ### Docker
 
-- `docker-compose.yml` : 1 service (app)
+- `docker-compose.yml` : 1 service (app), `restart: unless-stopped`
 - Port exposé : 46127
-- Volume : `./data:/app/data` (persistance SQLite)
-- `scripts/entrypoint.sh` lance le serveur Node.js
+- Volume : `./data:/app/data` (persistance SQLite + portraits uploadés)
+- Le Dockerfile copie les `dist/` pré-compilés — le TypeScript n'est PAS compilé dans Docker
 
 ## GitHub
 
