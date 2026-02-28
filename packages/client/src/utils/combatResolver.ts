@@ -34,36 +34,41 @@ export function getEquipmentBonus(character: Character, stat: string): number {
 }
 
 /**
- * Calcule le bonus de bénédiction pour un combat.
  * Règles officielles Fabled Lands :
- * - Certaines bénédictions donnent +1 au combat ou à la défense
- * - Les bénédictions divines peuvent permettre une relance
+ * Les bénédictions sont des RELANCES à usage unique, PAS des bonus permanents.
+ * - "Combat" → relance un jet de combat raté
+ * - "Chance" → relance n'importe quel jet raté
+ * - "Défense par la foi" → seule bénédiction qui améliore la Défense (+1)
  */
-export function getBlessingBonus(character: Character): { combat: number; defence: number; canReroll: boolean } {
-  let combatBonus = 0;
-  let defenceBonus = 0;
-  let canReroll = false;
 
-  for (const blessing of character.blessings) {
-    const lower = blessing.toLowerCase();
-    // Bénédictions de combat (dieu de la guerre, force, etc.)
-    if (lower.includes('combat') || lower.includes('guerre') || lower.includes('force') ||
-        lower.includes('valor') || lower.includes('vaillance')) {
-      combatBonus += 1;
-    }
-    // Bénédictions de protection
-    if (lower.includes('protection') || lower.includes('défense') || lower.includes('bouclier') ||
-        lower.includes('armure') || lower.includes('garde')) {
-      defenceBonus += 1;
-    }
-    // Bénédictions de chance / relance
-    if (lower.includes('chance') || lower.includes('fortune') || lower.includes('destin') ||
-        lower.includes('relance') || lower.includes('faveur')) {
-      canReroll = true;
+/** Mapping bénédiction → stat pour la relance */
+const blessingRerollMap: Record<string, string> = {
+  'Combat': 'combat',
+  'Charisme': 'charisma',
+  'Magie': 'magic',
+  'Piété': 'sanctity',
+  'Exploration': 'scouting',
+  'Adresse': 'thievery',
+};
+
+/** Vérifie si le personnage peut relancer un jet pour une compétence donnée */
+export function getAvailableReroll(character: Character, stat: string): string | null {
+  // Bénédiction spécifique à la compétence
+  for (const [blessing, bStat] of Object.entries(blessingRerollMap)) {
+    if (bStat === stat && character.blessings.includes(blessing)) {
+      return blessing;
     }
   }
+  // Bénédiction de Chance (relance universelle)
+  if (character.blessings.includes('Chance')) {
+    return 'Chance';
+  }
+  return null;
+}
 
-  return { combat: combatBonus, defence: defenceBonus, canReroll };
+/** Bonus de défense passif des bénédictions (seule "Défense par la foi" s'applique) */
+export function getBlessingDefenceBonus(character: Character): number {
+  return character.blessings.includes('Défense par la foi') ? 1 : 0;
 }
 
 export function resolveRound(
@@ -73,12 +78,12 @@ export function resolveRound(
 ): CombatState {
   if (state.finished) return state;
 
-  const blessingBonus = getBlessingBonus(character);
+  const defFaithBonus = getBlessingDefenceBonus(character);
 
-  // Attaque du joueur : 2d6 + COMBAT + bonus arme + bonus bénédiction
+  // Attaque du joueur : 2d6 + COMBAT + bonus arme
   const playerRoll = roll2d6();
   const combatBonus = getEquipmentBonus(character, 'combat');
-  const playerAttack = playerRoll[0] + playerRoll[1] + character.combat + combatBonus + blessingBonus.combat;
+  const playerAttack = playerRoll[0] + playerRoll[1] + character.combat + combatBonus;
 
   // Attaque de l'ennemi : 2d6 + COMBAT ennemi
   const enemyRoll = roll2d6();
@@ -86,7 +91,7 @@ export function resolveRound(
 
   // Dégâts : score d'attaque - DÉFENSE de la cible (minimum 0)
   const defenceBonus = getEquipmentBonus(character, 'defence');
-  const totalPlayerDefence = character.defence + defenceBonus + blessingBonus.defence;
+  const totalPlayerDefence = character.defence + defenceBonus + defFaithBonus;
   const playerDamage = Math.max(0, enemyAttack - totalPlayerDefence);
   const enemyDamage = Math.max(0, playerAttack - enemy.defence);
 
@@ -132,7 +137,7 @@ export function resolveFlee(
 ): CombatState {
   if (state.finished) return state;
 
-  const blessingBonus = getBlessingBonus(character);
+  const defFaithBonus = getBlessingDefenceBonus(character);
 
   // L'ennemi attaque une dernière fois
   const enemyRoll = roll2d6();
@@ -140,7 +145,7 @@ export function resolveFlee(
 
   // Le joueur subit les dégâts (pas de riposte)
   const defenceBonus = getEquipmentBonus(character, 'defence');
-  const totalPlayerDefence = character.defence + defenceBonus + blessingBonus.defence;
+  const totalPlayerDefence = character.defence + defenceBonus + defFaithBonus;
   const playerDamage = Math.max(0, enemyAttack - totalPlayerDefence);
   const newPlayerStamina = Math.max(0, state.playerStamina - playerDamage);
 

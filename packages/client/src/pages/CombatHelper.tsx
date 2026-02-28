@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../utils/api';
 import { Character } from '../data/types';
-import { Enemy, CombatState, initCombat, resolveRound, resolveFlee, getEquipmentBonus, getBlessingBonus } from '../utils/combatResolver';
+import { Enemy, CombatState, initCombat, resolveRound, resolveFlee, getEquipmentBonus, getAvailableReroll, getBlessingDefenceBonus } from '../utils/combatResolver';
 import { roll2d6, skillTest, SkillTestResult } from '../utils/diceRoller';
 import DiceAnimation from '../components/combat/DiceAnimation';
 
@@ -33,6 +33,7 @@ export default function CombatHelper() {
   const [showDeathModal, setShowDeathModal] = useState(false);
   const [initialStamina, setInitialStamina] = useState<number | null>(null);
   const [canUseReroll, setCanUseReroll] = useState(false);
+  const [rerollBlessing, setRerollBlessing] = useState<string | null>(null);
   const [pendingRerollState, setPendingRerollState] = useState<CombatState | null>(null);
 
   // Skill test state
@@ -41,6 +42,8 @@ export default function CombatHelper() {
   const [testBonus, setTestBonus] = useState(0);
   const [testResult, setTestResult] = useState<SkillTestResult | null>(null);
   const [testRolling, setTestRolling] = useState(false);
+  const [testRerollAvailable, setTestRerollAvailable] = useState<string | null>(null);
+  const [testRerollUsed, setTestRerollUsed] = useState(false);
 
   useEffect(() => {
     api.getCharacters().then(chars => {
@@ -68,10 +71,19 @@ export default function CombatHelper() {
     setCombatState(initCombat(selectedChar, enemy));
   };
 
+  /** Consomme une bénédiction (supprime de la liste et sauvegarde en BDD) */
+  const consumeBlessing = useCallback(async (blessingName: string) => {
+    if (!selectedChar?.id) return;
+    const updatedBlessings = selectedChar.blessings.filter((b: string) => b !== blessingName);
+    await api.updateCharacter(selectedChar.id, { blessings: updatedBlessings });
+    setSelectedChar({ ...selectedChar, blessings: updatedBlessings });
+  }, [selectedChar]);
+
   /** Applique le résultat d'un round (mise à jour endurance, log, mort) */
   const applyRoundResult = useCallback((newState: CombatState) => {
     setCombatState(newState);
     setCanUseReroll(false);
+    setRerollBlessing(null);
     setPendingRerollState(null);
 
     if (newState.playerStamina !== selectedChar?.stamina && selectedChar?.id) {
@@ -104,12 +116,13 @@ export default function CombatHelper() {
       const newState = resolveRound(selectedChar, enemy, combatState);
       setRolling(false);
 
-      // Si bénédiction de relance et round défavorable, proposer la relance
-      const bBonus = getBlessingBonus(selectedChar);
+      // Vérifier si une relance est possible (bénédiction Combat ou Chance)
       const lastRound = newState.rounds[newState.rounds.length - 1];
-      if (bBonus.canReroll && lastRound && lastRound.playerDamage === 0 && lastRound.enemyDamage > 0) {
-        // Round défavorable : proposer la relance
+      const available = getAvailableReroll(selectedChar, 'combat');
+      // Proposer la relance si le round est défavorable (joueur prend des dégâts et/ou n'en inflige pas)
+      if (available && lastRound && (lastRound.playerDamage === 0 || lastRound.enemyDamage > 0)) {
         setPendingRerollState(newState);
+        setRerollBlessing(available);
         setCanUseReroll(true);
         setCombatState(newState);
       } else {
@@ -154,9 +167,13 @@ export default function CombatHelper() {
     }, 800);
   }, [selectedChar, combatState, enemyName, enemyCombat, enemyDefence, enemyStamina]);
 
-  /** Relancer les dés (bénédiction chance/fortune) */
-  const handleReroll = useCallback(() => {
-    if (!selectedChar || !combatState || !pendingRerollState) return;
+  /** Relancer les dés (consomme la bénédiction) */
+  const handleReroll = useCallback(async () => {
+    if (!selectedChar || !combatState || !pendingRerollState || !rerollBlessing) return;
+
+    // Consommer la bénédiction
+    await consumeBlessing(rerollBlessing);
+
     setCanUseReroll(false);
     setRolling(true);
 
@@ -180,9 +197,10 @@ export default function CombatHelper() {
       setLastDice(newDice);
       setRolling(false);
       setPendingRerollState(null);
+      setRerollBlessing(null);
       applyRoundResult(newState);
     }, 800);
-  }, [selectedChar, combatState, pendingRerollState, initialStamina, enemyName, enemyCombat, enemyDefence, enemyStamina, applyRoundResult]);
+  }, [selectedChar, combatState, pendingRerollState, rerollBlessing, initialStamina, enemyName, enemyCombat, enemyDefence, enemyStamina, applyRoundResult, consumeBlessing]);
 
   /** Accepter le round sans relancer */
   const acceptRound = useCallback(() => {
@@ -204,6 +222,7 @@ export default function CombatHelper() {
     setEnemyStamina(10);
     setInitialStamina(null);
     setCanUseReroll(false);
+    setRerollBlessing(null);
     setPendingRerollState(null);
     setSelectedChar(null);
   };
@@ -211,11 +230,6 @@ export default function CombatHelper() {
   /** Résurrection : le personnage revient avec pénalités selon les règles officielles */
   const handleResurrection = async () => {
     if (!selectedChar?.id) return;
-    // Pénalités de résurrection selon les règles Fabled Lands :
-    // - Perte de tout l'argent
-    // - Perte de tout l'équipement
-    // - Endurance restaurée au maximum
-    // - L'arrangement de résurrection est consommé
     await api.updateCharacter(selectedChar.id, {
       stamina: selectedChar.max_stamina,
       money: 0,
@@ -252,27 +266,68 @@ export default function CombatHelper() {
     setLastDice(null);
     setInitialStamina(null);
     setCanUseReroll(false);
+    setRerollBlessing(null);
     setPendingRerollState(null);
   };
 
+  /** Test de compétence avec gestion des bénédictions */
   const runSkillTest = () => {
     if (!selectedChar) return;
     setTestRolling(true);
+    setTestRerollAvailable(null);
+    setTestRerollUsed(false);
     setTimeout(() => {
       const skillValue = selectedChar[testSkill] || 0;
       const equipBonus = getEquipmentBonus(selectedChar, testSkill);
       const result = skillTest(skillValue, testDifficulty, testBonus + equipBonus);
       setTestResult(result);
       setTestRolling(false);
+
+      // Si échec, vérifier si une bénédiction permet la relance
+      if (!result.success) {
+        const available = getAvailableReroll(selectedChar, testSkill);
+        if (available) {
+          setTestRerollAvailable(available);
+        }
+      }
+    }, 800);
+  };
+
+  /** Relance un test de compétence raté (consomme la bénédiction) */
+  const handleTestReroll = async () => {
+    if (!selectedChar || !testRerollAvailable) return;
+
+    // Consommer la bénédiction
+    await consumeBlessing(testRerollAvailable);
+    setTestRerollAvailable(null);
+    setTestRerollUsed(true);
+    setTestRolling(true);
+
+    setTimeout(() => {
+      const skillValue = selectedChar[testSkill] || 0;
+      const equipBonus = getEquipmentBonus(selectedChar, testSkill);
+      const result = skillTest(skillValue, testDifficulty, testBonus + equipBonus);
+      setTestResult(result);
+      setTestRolling(false);
+
+      // Après la relance, vérifier s'il reste une autre bénédiction (ex: Chance après une bénédiction spécifique)
+      if (!result.success) {
+        // Le personnage a déjà consommé une bénédiction, vérifier s'il en reste une autre
+        const updatedChar = { ...selectedChar, blessings: selectedChar.blessings.filter((b: string) => b !== testRerollAvailable) };
+        const another = getAvailableReroll(updatedChar, testSkill);
+        if (another) {
+          setTestRerollAvailable(another);
+        }
+      }
     }, 800);
   };
 
   // Calcul des bonus pour affichage
   const combatBonusDisplay = selectedChar ? getEquipmentBonus(selectedChar, 'combat') : 0;
   const defenceBonusDisplay = selectedChar ? getEquipmentBonus(selectedChar, 'defence') : 0;
-  const blessingBonus = selectedChar ? getBlessingBonus(selectedChar) : { combat: 0, defence: 0, canReroll: false };
-  const totalCombat = selectedChar ? selectedChar.combat + combatBonusDisplay + blessingBonus.combat : 0;
-  const totalDefence = selectedChar ? selectedChar.defence + defenceBonusDisplay + blessingBonus.defence : 0;
+  const defFaithBonus = selectedChar ? getBlessingDefenceBonus(selectedChar) : 0;
+  const totalCombat = selectedChar ? selectedChar.combat + combatBonusDisplay : 0;
+  const totalDefence = selectedChar ? selectedChar.defence + defenceBonusDisplay + defFaithBonus : 0;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-4xl mx-auto space-y-6">
@@ -312,14 +367,13 @@ export default function CombatHelper() {
               <div>
                 <p className="font-medieval text-xl text-fantasy-gold">{selectedChar.name}</p>
                 <p className="text-sm text-parchment-300">
-                  COM: {totalCombat}{(combatBonusDisplay > 0 || blessingBonus.combat > 0) && <span className="text-green-400"> ({selectedChar.combat}+{combatBonusDisplay + blessingBonus.combat})</span>}
-                  {' | '}DEF: {totalDefence}{(defenceBonusDisplay > 0 || blessingBonus.defence > 0) && <span className="text-green-400"> ({selectedChar.defence}+{defenceBonusDisplay + blessingBonus.defence})</span>}
+                  COM: {totalCombat}{combatBonusDisplay > 0 && <span className="text-green-400"> ({selectedChar.combat}+{combatBonusDisplay})</span>}
+                  {' | '}DEF: {totalDefence}{(defenceBonusDisplay > 0 || defFaithBonus > 0) && <span className="text-green-400"> ({selectedChar.defence}+{defenceBonusDisplay + defFaithBonus})</span>}
                   {' | '}END: {selectedChar.stamina}/{selectedChar.max_stamina}
                 </p>
                 {selectedChar.blessings.length > 0 && (
                   <p className="text-xs text-purple-400">
-                    Bénédictions : {selectedChar.blessings.join(', ')}
-                    {blessingBonus.canReroll && ' (relance possible)'}
+                    Benedictions : {selectedChar.blessings.join(', ')}
                   </p>
                 )}
               </div>
@@ -335,7 +389,7 @@ export default function CombatHelper() {
               Combat
             </button>
             <button onClick={() => setMode('test')} className={`px-4 py-2 rounded font-medieval text-sm ${mode === 'test' ? 'bg-fantasy-gold text-parchment-900' : 'bg-parchment-800 text-parchment-400'}`}>
-              Test de compétence
+              Test de competence
             </button>
           </div>
 
@@ -355,7 +409,7 @@ export default function CombatHelper() {
                       <input type="number" value={enemyCombat} onChange={e => setEnemyCombat(Number(e.target.value))} className="fantasy-input" min={1} />
                     </div>
                     <div>
-                      <label className="block text-sm text-parchment-200 mb-1 font-semibold">Défense</label>
+                      <label className="block text-sm text-parchment-200 mb-1 font-semibold">Defense</label>
                       <input type="number" value={enemyDefence} onChange={e => setEnemyDefence(Number(e.target.value))} className="fantasy-input" min={1} />
                     </div>
                     <div>
@@ -397,14 +451,17 @@ export default function CombatHelper() {
                     </div>
 
                     {/* Bonus recap */}
-                    {(combatBonusDisplay > 0 || defenceBonusDisplay > 0 || blessingBonus.combat > 0 || blessingBonus.defence > 0) && (
+                    {(combatBonusDisplay > 0 || defenceBonusDisplay > 0 || defFaithBonus > 0) && (
                       <div className="text-center text-xs text-parchment-400 mb-2">
                         Bonus actifs :
-                        {(combatBonusDisplay > 0 || blessingBonus.combat > 0) && (
-                          <span className="text-green-400 ml-1">+{combatBonusDisplay + blessingBonus.combat} Combat</span>
+                        {combatBonusDisplay > 0 && (
+                          <span className="text-green-400 ml-1">+{combatBonusDisplay} Combat</span>
                         )}
-                        {(defenceBonusDisplay > 0 || blessingBonus.defence > 0) && (
-                          <span className="text-blue-400 ml-1">+{defenceBonusDisplay + blessingBonus.defence} Défense</span>
+                        {(defenceBonusDisplay > 0 || defFaithBonus > 0) && (
+                          <span className="text-blue-400 ml-1">+{defenceBonusDisplay + defFaithBonus} Defense</span>
+                        )}
+                        {defFaithBonus > 0 && (
+                          <span className="text-purple-400 ml-1">(Defense par la foi)</span>
                         )}
                       </div>
                     )}
@@ -424,12 +481,12 @@ export default function CombatHelper() {
                           'text-fantasy-red'
                         }`}>
                           {combatState.winner === 'player' && 'Victoire !'}
-                          {combatState.winner === 'enemy' && 'Défaite...'}
+                          {combatState.winner === 'enemy' && 'Defaite...'}
                           {combatState.winner === 'fled' && 'Fuite !'}
                         </p>
                         {combatState.winner === 'fled' && (
                           <p className="text-sm text-parchment-300">
-                            Vous avez fui le combat. L'ennemi a porté une dernière attaque.
+                            Vous avez fui le combat. L'ennemi a porte une derniere attaque.
                           </p>
                         )}
                         <button onClick={resetCombat} className="fantasy-button">Nouveau combat</button>
@@ -437,15 +494,18 @@ export default function CombatHelper() {
                     ) : canUseReroll ? (
                       <div className="space-y-2">
                         <div className="p-3 bg-purple-900/30 border border-purple-600 rounded-lg text-center">
-                          <p className="text-purple-300 font-medieval text-sm mb-2">
-                            Bénédiction de chance ! Vous pouvez relancer vos dés.
+                          <p className="text-purple-300 font-medieval text-sm mb-1">
+                            Utiliser la benediction "{rerollBlessing}" ?
+                          </p>
+                          <p className="text-xs text-parchment-400 mb-2">
+                            La benediction sera consommee (usage unique).
                           </p>
                           <div className="flex gap-2">
                             <button onClick={handleReroll} disabled={rolling} className="flex-1 px-4 py-2 rounded font-medieval text-sm bg-purple-800 text-purple-100 border border-purple-500 hover:bg-purple-700 transition-all">
-                              Relancer les dés
+                              Relancer les des
                             </button>
                             <button onClick={acceptRound} disabled={rolling} className="flex-1 fantasy-button text-center text-sm">
-                              Garder ce résultat
+                              Garder ce resultat
                             </button>
                           </div>
                         </div>
@@ -453,7 +513,7 @@ export default function CombatHelper() {
                     ) : (
                       <div className="space-y-2">
                         <button onClick={nextRound} disabled={rolling} className="fantasy-button w-full text-center text-lg">
-                          {rolling ? 'Lancer des dés...' : 'Lancer le round !'}
+                          {rolling ? 'Lancer des des...' : 'Lancer le round !'}
                         </button>
                         <div className="flex gap-2">
                           <button onClick={handleFlee} disabled={rolling} className="flex-1 px-4 py-2 rounded font-medieval text-sm bg-yellow-800/50 text-yellow-300 border border-yellow-600 hover:bg-yellow-700/50 transition-all text-center">
@@ -480,15 +540,15 @@ export default function CombatHelper() {
                             </p>
                             {round.isFlee ? (
                               <p className="text-parchment-200">
-                                {selectedChar.name} fuit ! {enemyName} attaque : [{round.enemyRoll.join(', ')}] + {enemyCombat} = {round.enemyTotal} → {round.enemyDamage} dégâts
+                                {selectedChar.name} fuit ! {enemyName} attaque : [{round.enemyRoll.join(', ')}] + {enemyCombat} = {round.enemyTotal} &rarr; {round.enemyDamage} degats
                               </p>
                             ) : (
                               <>
                                 <p className="text-parchment-200">
-                                  {selectedChar.name}: [{round.playerRoll.join(', ')}] + {totalCombat} = {round.playerTotal} → {round.playerDamage} dégâts
+                                  {selectedChar.name}: [{round.playerRoll.join(', ')}] + {totalCombat} = {round.playerTotal} &rarr; {round.playerDamage} degats
                                 </p>
                                 <p className="text-parchment-200">
-                                  {enemyName}: [{round.enemyRoll.join(', ')}] + {enemyCombat} = {round.enemyTotal} → {round.enemyDamage} dégâts
+                                  {enemyName}: [{round.enemyRoll.join(', ')}] + {enemyCombat} = {round.enemyTotal} &rarr; {round.enemyDamage} degats
                                 </p>
                               </>
                             )}
@@ -506,10 +566,10 @@ export default function CombatHelper() {
           ) : (
             /* Skill Test Mode */
             <div className="parchment-card space-y-4">
-              <h3 className="section-title">Test de compétence</h3>
+              <h3 className="section-title">Test de competence</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm text-parchment-200 mb-1 font-semibold">Compétence</label>
+                  <label className="block text-sm text-parchment-200 mb-1 font-semibold">Competence</label>
                   <select value={testSkill} onChange={e => setTestSkill(e.target.value)} className="fantasy-input">
                     {Object.entries(statLabels).map(([key, label]) => (
                       <option key={key} value={key}>{label} ({selectedChar[key]})</option>
@@ -517,7 +577,7 @@ export default function CombatHelper() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-parchment-200 mb-1 font-semibold">Difficulté</label>
+                  <label className="block text-sm text-parchment-200 mb-1 font-semibold">Difficulte</label>
                   <input type="number" value={testDifficulty} onChange={e => setTestDifficulty(Number(e.target.value))} className="fantasy-input" min={2} />
                 </div>
                 <div>
@@ -539,16 +599,53 @@ export default function CombatHelper() {
                     className={`p-4 rounded-lg border-2 text-center ${testResult.success ? 'border-green-600 bg-green-900/30' : 'border-red-600 bg-red-900/30'}`}
                   >
                     <p className="font-medieval text-2xl mb-2">
-                      {testResult.success ? 'Réussite !' : 'Échec !'}
+                      {testResult.success ? 'Reussite !' : 'Echec !'}
                     </p>
                     <p className="text-parchment-200">
                       [{testResult.dice.join(', ')}] ({testResult.diceTotal}) + {testResult.skillValue}
                       {testResult.bonus > 0 && ` + ${testResult.bonus}`} = <span className="font-bold">{testResult.total}</span>
-                      {' '}vs difficulté {testResult.difficulty}
+                      {' '}vs difficulte {testResult.difficulty}
                     </p>
+                    {testRerollUsed && (
+                      <p className="text-xs text-purple-400 mt-1">
+                        (apres relance par benediction)
+                      </p>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Proposition de relance par bénédiction */}
+              {testRerollAvailable && testResult && !testResult.success && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3 bg-purple-900/30 border border-purple-600 rounded-lg text-center"
+                >
+                  <p className="text-purple-300 font-medieval text-sm mb-1">
+                    Utiliser la benediction "{testRerollAvailable}" pour relancer ?
+                  </p>
+                  <p className="text-xs text-parchment-400 mb-2">
+                    La benediction sera consommee (usage unique).
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleTestReroll}
+                      disabled={testRolling}
+                      className="flex-1 px-4 py-2 rounded font-medieval text-sm bg-purple-800 text-purple-100 border border-purple-500 hover:bg-purple-700 transition-all"
+                    >
+                      Relancer ({statLabels[testSkill]})
+                    </button>
+                    <button
+                      onClick={() => setTestRerollAvailable(null)}
+                      disabled={testRolling}
+                      className="flex-1 fantasy-button text-center text-sm"
+                    >
+                      Garder le resultat
+                    </button>
+                  </div>
+                </motion.div>
+              )}
             </div>
           )}
         </>
@@ -568,40 +665,40 @@ export default function CombatHelper() {
               exit={{ scale: 0.8, opacity: 0 }}
               className="bg-parchment-900 border-2 border-fantasy-red rounded-lg p-6 max-w-md w-full text-center space-y-4"
             >
-              <div className="text-6xl">💀</div>
+              <div className="text-6xl">&#x1F480;</div>
               <h3 className="font-medieval text-2xl text-fantasy-red">{selectedChar.name} est mort(e) !</h3>
               <p className="text-parchment-300">
-                L'endurance de votre personnage est tombée à 0.
+                L'endurance de votre personnage est tombee a 0.
               </p>
 
               {selectedChar.resurrection_arrangement ? (
                 <div className="space-y-3">
                   <div className="bg-green-900/30 border border-green-600 rounded-lg p-3">
-                    <p className="text-green-400 font-semibold">Arrangement de résurrection actif</p>
+                    <p className="text-green-400 font-semibold">Arrangement de resurrection actif</p>
                     <p className="text-parchment-300 text-sm mt-1">{selectedChar.resurrection_arrangement}</p>
                   </div>
                   <p className="text-parchment-400 text-sm">
-                    Selon les règles officielles, la résurrection entraîne :
+                    Selon les regles officielles, la resurrection entraine :
                   </p>
                   <ul className="text-parchment-300 text-sm text-left list-disc pl-5 space-y-1">
                     <li>Perte de <strong className="text-fantasy-red">tout votre argent</strong> ({selectedChar.money} chardes)</li>
-                    <li>Perte de <strong className="text-fantasy-red">tout votre équipement</strong> ({selectedChar.equipment?.length || 0} objets)</li>
-                    <li>Endurance restaurée à <strong className="text-green-400">{selectedChar.max_stamina}</strong></li>
-                    <li>L'arrangement de résurrection est <strong className="text-yellow-400">consommé</strong></li>
+                    <li>Perte de <strong className="text-fantasy-red">tout votre equipement</strong> ({selectedChar.equipment?.length || 0} objets)</li>
+                    <li>Endurance restauree a <strong className="text-green-400">{selectedChar.max_stamina}</strong></li>
+                    <li>L'arrangement de resurrection est <strong className="text-yellow-400">consomme</strong></li>
                   </ul>
                   <div className="flex gap-2">
                     <button onClick={handleResurrection} className="flex-1 px-4 py-2 rounded font-medieval bg-green-800 text-green-100 border border-green-600 hover:bg-green-700 transition-all">
                       Ressusciter
                     </button>
                     <button onClick={handlePermanentDeath} className="flex-1 fantasy-button-danger text-center">
-                      Refuser (mort définitive)
+                      Refuser (mort definitive)
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <div className="bg-red-900/30 border border-red-600 rounded-lg p-3">
-                    <p className="text-fantasy-red font-semibold">Aucun arrangement de résurrection</p>
+                    <p className="text-fantasy-red font-semibold">Aucun arrangement de resurrection</p>
                     <p className="text-parchment-400 text-sm mt-1">
                       Votre personnage n'a pas conclu d'arrangement dans un temple.
                       Vous pouvez en obtenir un en visitant un temple avant votre prochain combat.
@@ -610,7 +707,6 @@ export default function CombatHelper() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
-                        // Permettre de simuler une résurrection gracieuse (le joueur décide)
                         setShowDeathModal(false);
                         setCombatState(null);
                         setLastDice(null);
@@ -620,7 +716,7 @@ export default function CombatHelper() {
                       Continuer (ignorer la mort)
                     </button>
                     <button onClick={handlePermanentDeath} className="flex-1 fantasy-button-danger text-center text-sm">
-                      Mort définitive
+                      Mort definitive
                     </button>
                   </div>
                 </div>

@@ -6,6 +6,9 @@ import { Character, EquipmentItem } from '../data/types';
 import { books } from '../data/books';
 import { gods, allEquipment } from '../data/equipment';
 import { statsTable, RankRange } from '../data/professions';
+// codewords data no longer needed here — codewords come from book_progress
+import { officialBlessings } from '../data/blessings';
+import { officialTitles } from '../data/titles';
 
 const statLabels: Record<string, string> = {
   combat: 'COMBAT',
@@ -38,6 +41,13 @@ export default function CharacterSheet() {
   const [showCatalog, setShowCatalog] = useState(false);
   const [catalogFilter, setCatalogFilter] = useState<'tous' | 'arme' | 'armure' | 'objet'>('tous');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [newBlessing, setNewBlessing] = useState('');
+  const [blessingDropdownOpen, setBlessingDropdownOpen] = useState(false);
+  const blessingDropdownRef = useRef<HTMLDivElement>(null);
+  const [newTitle, setNewTitle] = useState('');
+  const [titleDropdownOpen, setTitleDropdownOpen] = useState(false);
+  const titleDropdownRef = useRef<HTMLDivElement>(null);
+  const [checkedCodewords, setCheckedCodewords] = useState<{ word: string; book: number }[]>([]);
 
   const handlePortraitUpload = async (file: File) => {
     if (!id) return;
@@ -53,11 +63,17 @@ export default function CharacterSheet() {
     }
   };
 
-  // Fermer le dropdown équipement au clic extérieur
+  // Fermer les dropdowns au clic extérieur
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (equipSearchRef.current && !equipSearchRef.current.contains(e.target as Node)) {
         setEquipDropdownOpen(false);
+      }
+      if (blessingDropdownRef.current && !blessingDropdownRef.current.contains(e.target as Node)) {
+        setBlessingDropdownOpen(false);
+      }
+      if (titleDropdownRef.current && !titleDropdownRef.current.contains(e.target as Node)) {
+        setTitleDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -87,13 +103,20 @@ export default function CharacterSheet() {
       // Charger les logs de combat
       api.getCombatLogs(Number(id)).then(setCombatLogs).catch(() => {});
 
-      // Charger la progression par livre
+      // Charger la progression par livre + coche-mots cochés
       Promise.all(
-        books.map(b => api.getBookProgress(Number(id), b.id).then(p => ({ bookId: b.id, count: p.length })))
+        books.map(b => api.getBookProgress(Number(id), b.id).then(p => ({ bookId: b.id, entries: p })))
       ).then(results => {
         const progress: Record<number, number> = {};
-        results.forEach(r => { progress[r.bookId] = r.count; });
+        const words: { word: string; book: number }[] = [];
+        results.forEach(r => {
+          progress[r.bookId] = r.entries.length;
+          r.entries.forEach((p: any) => {
+            if (p.notes) words.push({ word: p.notes, book: r.bookId });
+          });
+        });
         setBookProgress(progress);
+        setCheckedCodewords(words);
       }).catch(() => {});
     }
   }, [id, navigate]);
@@ -748,41 +771,235 @@ export default function CharacterSheet() {
 
       {/* Codewords, Titles, Blessings */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Coche-mots (depuis la page Livres & Codes) */}
         <div className="parchment-card">
-          <h3 className="font-medieval text-lg text-fantasy-gold mb-2">Coche-mots</h3>
-          {(char.codewords || []).length === 0 ? (
-            <p className="text-parchment-500 text-sm italic">Aucun</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {(char.codewords || []).map((cw: string, i: number) => (
-                <span key={i} className="px-2 py-1 bg-parchment-700/50 rounded text-sm text-parchment-100">{cw}</span>
-              ))}
-            </div>
-          )}
+          <h3 className="font-medieval text-lg text-fantasy-gold mb-2">
+            <Link to={`/books`} className="hover:text-yellow-300 transition-colors">
+              Coche-mots
+            </Link>
+          </h3>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {checkedCodewords.length === 0 ? (
+              <p className="text-parchment-500 text-sm italic">Aucun coche-mot coché</p>
+            ) : (
+              checkedCodewords.map((cw, i) => {
+                const bookData = books.find(b => b.id === cw.book);
+                return (
+                  <span
+                    key={`${cw.book}-${cw.word}-${i}`}
+                    className="px-2 py-1 rounded text-sm text-parchment-100 flex items-center gap-1"
+                    style={{ backgroundColor: (bookData?.color ?? '#DAA520') + '30' }}
+                  >
+                    <Link to={`/books/${cw.book}`} className="hover:text-fantasy-gold transition-colors">{cw.word}</Link>
+                    <span className="text-xs text-parchment-500">L{cw.book}</span>
+                  </span>
+                );
+              })
+            )}
+          </div>
+          <Link
+            to="/books"
+            className="fantasy-button text-xs w-full text-center block"
+          >
+            Gerer les coche-mots
+          </Link>
         </div>
+
+        {/* Titres */}
         <div className="parchment-card">
           <h3 className="font-medieval text-lg text-fantasy-gold mb-2">Titres</h3>
-          {(char.titles || []).length === 0 ? (
-            <p className="text-parchment-500 text-sm italic">Aucun</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {(char.titles || []).map((t: string, i: number) => (
-                <span key={i} className="px-2 py-1 bg-fantasy-gold/20 rounded text-sm text-parchment-100 font-semibold">{t}</span>
-              ))}
+          <div className="flex flex-wrap gap-2 mb-2">
+            {((editing ? editData.titles : char.titles) || []).length === 0 ? (
+              <p className="text-parchment-500 text-sm italic">Aucun</p>
+            ) : (
+              ((editing ? editData.titles : char.titles) || []).map((t: string, i: number) => {
+                const def = officialTitles.find(tt => tt.name === t);
+                return (
+                  <span key={i} className="px-2 py-1 bg-fantasy-gold/20 rounded text-sm text-parchment-100 font-semibold flex items-center gap-1 group relative">
+                    {t}
+                    {def && (
+                      <span className="hidden group-hover:block absolute bottom-full left-0 mb-1 bg-parchment-900 border border-fantasy-gold/40 rounded px-2 py-1 text-xs text-parchment-300 whitespace-nowrap z-50">
+                        Livre {def.book} — {def.description}
+                      </span>
+                    )}
+                    <button type="button" onClick={async () => {
+                      const currentTitles = editing ? [...(editData.titles || [])] : [...(char.titles || [])];
+                      currentTitles.splice(i, 1);
+                      if (editing) {
+                        setEditData({ ...editData, titles: currentTitles });
+                      } else {
+                        await api.updateCharacter(Number(id), { titles: currentTitles });
+                        setChar({ ...char, titles: currentTitles });
+                        setEditData({ ...editData, titles: currentTitles });
+                      }
+                    }} className="text-red-400 hover:text-red-300 text-xs ml-1">✕</button>
+                  </span>
+                );
+              })
+            )}
+          </div>
+          <div className="relative" ref={titleDropdownRef}>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newTitle}
+                onChange={e => { setNewTitle(e.target.value); setTitleDropdownOpen(true); }}
+                onFocus={() => setTitleDropdownOpen(true)}
+                placeholder="Ajouter un titre..."
+                className="fantasy-input text-sm flex-1"
+                onKeyDown={async e => {
+                  if (e.key === 'Enter' && newTitle.trim()) {
+                    e.preventDefault();
+                    setTitleDropdownOpen(false);
+                    if (editing) {
+                      setEditData({ ...editData, titles: [...(editData.titles || []), newTitle.trim()] });
+                    } else {
+                      const updated = [...(char.titles || []), newTitle.trim()];
+                      await api.updateCharacter(Number(id), { titles: updated });
+                      setChar({ ...char, titles: updated });
+                      setEditData({ ...editData, titles: updated });
+                    }
+                    setNewTitle('');
+                  } else if (e.key === 'Escape') {
+                    setTitleDropdownOpen(false);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newTitle.trim()) return;
+                  setTitleDropdownOpen(false);
+                  if (editing) {
+                    setEditData({ ...editData, titles: [...(editData.titles || []), newTitle.trim()] });
+                  } else {
+                    const updated = [...(char.titles || []), newTitle.trim()];
+                    await api.updateCharacter(Number(id), { titles: updated });
+                    setChar({ ...char, titles: updated });
+                    setEditData({ ...editData, titles: updated });
+                  }
+                  setNewTitle('');
+                }}
+                className="fantasy-button text-xs"
+              >+</button>
             </div>
-          )}
+            {titleDropdownOpen && (() => {
+              const currentTitles = (editing ? editData.titles : char.titles) || [];
+              const available = officialTitles.filter(t =>
+                !currentTitles.includes(t.name) &&
+                (!newTitle || t.name.toLowerCase().includes(newTitle.toLowerCase()))
+              );
+              if (available.length === 0) return null;
+              return (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-parchment-900 border border-fantasy-gold/30 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
+                  {available.map(t => (
+                    <button
+                      key={t.name}
+                      type="button"
+                      onClick={async () => {
+                        setTitleDropdownOpen(false);
+                        if (editing) {
+                          setEditData({ ...editData, titles: [...(editData.titles || []), t.name] });
+                        } else {
+                          const updated = [...(char.titles || []), t.name];
+                          await api.updateCharacter(Number(id), { titles: updated });
+                          setChar({ ...char, titles: updated });
+                          setEditData({ ...editData, titles: updated });
+                        }
+                        setNewTitle('');
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-fantasy-gold/10 transition-colors border-b border-parchment-700/30 last:border-b-0"
+                    >
+                      <span className="text-sm text-parchment-100 font-semibold">{t.name}</span>
+                      <span className="text-xs text-parchment-500 ml-2">Livre {t.book}</span>
+                      <p className="text-xs text-parchment-400 mt-0.5">{t.description}</p>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
         </div>
+
+        {/* Bénédictions */}
         <div className="parchment-card">
           <h3 className="font-medieval text-lg text-fantasy-gold mb-2">Bénédictions</h3>
-          {(char.blessings || []).length === 0 ? (
-            <p className="text-parchment-500 text-sm italic">Aucune</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {(char.blessings || []).map((b: string, i: number) => (
-                <span key={i} className="px-2 py-1 bg-purple-900/50 rounded text-sm text-parchment-100">{b}</span>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2 mb-2">
+            {((editing ? editData.blessings : char.blessings) || []).length === 0 ? (
+              <p className="text-parchment-500 text-sm italic">Aucune</p>
+            ) : (
+              ((editing ? editData.blessings : char.blessings) || []).map((b: string, i: number) => {
+                const def = officialBlessings.find(bb => bb.name === b);
+                return (
+                  <span key={i} className="px-2 py-1 bg-purple-900/50 rounded text-sm text-parchment-100 flex items-center gap-1 group relative">
+                    {b}
+                    {def && (
+                      <span className="hidden group-hover:block absolute bottom-full left-0 mb-1 bg-parchment-900 border border-purple-500/40 rounded px-2 py-1 text-xs text-parchment-300 whitespace-nowrap z-50">
+                        {def.description}
+                      </span>
+                    )}
+                    <button type="button" onClick={async () => {
+                      const currentBlessings = editing ? [...(editData.blessings || [])] : [...(char.blessings || [])];
+                      currentBlessings.splice(i, 1);
+                      if (editing) {
+                        setEditData({ ...editData, blessings: currentBlessings });
+                      } else {
+                        await api.updateCharacter(Number(id), { blessings: currentBlessings });
+                        setChar({ ...char, blessings: currentBlessings });
+                        setEditData({ ...editData, blessings: currentBlessings });
+                      }
+                    }} className="text-red-400 hover:text-red-300 text-xs ml-1">✕</button>
+                  </span>
+                );
+              })
+            )}
+          </div>
+          <div className="relative" ref={blessingDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setBlessingDropdownOpen(!blessingDropdownOpen)}
+              className="fantasy-button text-xs w-full"
+            >+ Ajouter une bénédiction</button>
+            {blessingDropdownOpen && (() => {
+              const currentBlessings = (editing ? editData.blessings : char.blessings) || [];
+              const available = officialBlessings.filter(b => !currentBlessings.includes(b.name));
+              if (available.length === 0) return (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-parchment-900 border border-purple-500/30 rounded-lg shadow-xl z-50 p-3">
+                  <p className="text-parchment-500 text-sm italic text-center">Toutes les bénédictions sont acquises</p>
+                </div>
+              );
+              return (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-parchment-900 border border-purple-500/30 rounded-lg shadow-xl z-50 max-h-56 overflow-y-auto">
+                  {available.map(b => (
+                    <button
+                      key={b.name}
+                      type="button"
+                      onClick={async () => {
+                        setBlessingDropdownOpen(false);
+                        if (editing) {
+                          setEditData({ ...editData, blessings: [...(editData.blessings || []), b.name] });
+                        } else {
+                          const updated = [...(char.blessings || []), b.name];
+                          await api.updateCharacter(Number(id), { blessings: updated });
+                          setChar({ ...char, blessings: updated });
+                          setEditData({ ...editData, blessings: updated });
+                        }
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-purple-900/30 transition-colors border-b border-parchment-700/30 last:border-b-0"
+                    >
+                      <span className="text-sm text-parchment-100 font-semibold">{b.name}</span>
+                      {b.rerollStat && (
+                        <span className="text-xs text-purple-400 ml-2">
+                          Relance {statLabels[b.rerollStat] || b.rerollStat}
+                        </span>
+                      )}
+                      <p className="text-xs text-parchment-400 mt-0.5">{b.description}</p>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
         </div>
       </div>
 
